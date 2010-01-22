@@ -1,3 +1,9 @@
+2010-01-23  Naohiro Aota  <naota@elisp.net>
+
+	* twittering-mode.el (twittering-point-list)
+	(twittering-render-timeline-1): New function.
+	(twittering-render-timeline): Scroll with id for each windows.
+
 2010-01-21  Satoshi Yatagawa  <yata_github@y.hauN.org>
 
 	* twittering-mode.el: Add a fail statement to work again under
