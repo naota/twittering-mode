@@ -170,6 +170,7 @@ Items:
  %l - location
  %L - \" [location]\"
  %r - \" in reply to user\"
+ %r - \" in reply to user (original message)\"
  %R - \" retweeted by user\"
  %u - url
  %j - user.id
@@ -2118,6 +2119,22 @@ variable `twittering-status-format'"
 		      (concat " "
 			      (make-string-with-url-property
 			       in-reply-to-string url))))))
+	      ("o" . ,(let ((reply-id (or (attr 'in-reply-to-status-id) ""))
+			    (reply-name (or (attr 'in-reply-to-screen-name) "")))
+			(or (when (not (member "" (list reply-id reply-name)))
+			      (catch 'loop
+				(dolist (l twittering-timeline-data)
+				  (when (string= (cdr (assq 'id l)) reply-id)
+				    (throw 'loop 
+					   (concat " "
+						   (make-string-with-url-property
+						    (concat
+						     "in reply to " reply-name 
+						     " (" (cdr (assq 'text l)) ")")
+						    (twittering-get-status-url 
+						     reply-name reply-id))))))
+				nil))
+			    "")))
 	      ("R" .
 	       ,(let ((retweeted-by (attr 'original-user-screen-name)))
 		  (if retweeted-by
