@@ -1,6 +1,10 @@
 2010-01-23  Naohiro Aota  <naota@elisp.net>
 
 	* twittering-mode.el (twittering-home-timeline): Add new funciton.
+	(twittering-format-status): Add "original
+	tweet message" format.
+	(twittering-status-format): Add "original tweet message"
+	description.
 
 2010-01-21  Satoshi Yatagawa  <yata_github@y.hauN.org>
 
