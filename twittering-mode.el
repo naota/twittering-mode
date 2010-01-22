@@ -1836,58 +1836,79 @@ If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
 ;;; display functions
 ;;;
 
+(defun twittering-point-list ()
+  (let ((p (point)))
+    (list p 
+	  (get-text-property p 'id) 
+	  (when twittering-scroll-mode
+	    (- p (or (previous-single-property-change p 'id)
+		     (point-min)))))))
+
+(defun twittering-render-timeline-1 (point id diff)
+  (goto-char (if twittering-scroll-mode
+		 (let ((pos (point-min)))
+		   (while (and (not (string= (get-text-property pos 'id) id))
+			       (setq pos (next-single-property-change pos 'id))))
+		   (if pos 
+		       (+ pos diff)
+		     (point-min)))
+	       point)))
+
 (defun twittering-render-timeline (&optional additional)
-  (with-current-buffer (twittering-buffer)
-    (let* ((point (point))
-	   (fill-column (- (window-width) 4)))
+  (let* ((buffer (twittering-buffer))
+	 (window-list (get-buffer-window-list
+		       buffer nil t))
+	 (min-width (apply 'min 
+			   (cons fill-column
+				 (mapcar (lambda (x) 
+					   (- (window-width x) 4))
+					 window-list))))
+	 (point-list (if window-list
+			 (mapcar (lambda (x)
+				   (with-selected-window x
+				     (cons x (twittering-point-list))))
+				 window-list)
+		       (with-current-buffer buffer
+			 (twittering-point-list))))
+	 (fill-column min-width))
+    (with-current-buffer buffer
       (twittering-update-mode-line)
       (setq buffer-read-only nil)
-      (when (and additional twittering-scroll-mode (eq point (point-min)))
-	;; If (< (point-min) (point)), the point exists on the same status
-	;; even after insertion by the effect of `save-excursion'.
-	;; However, if (eq (point-min) (point)), the point must be adjusted
-	;; because new statuses are inserted after the original (point-min).
-	(goto-char (min (1+ (point-min)) (point-max))))
-      (save-excursion
-	(unless additional
-	  (erase-buffer))
-	(let ((pos (twittering-get-first-status-head)))
-	  (mapc
-	   (lambda (status)
-	     (let* ((id (cdr (assoc 'id status))))
-	       ;; Find where the status should be inserted.
-	       (while
-		   (let* ((buf-id (get-text-property pos 'id)))
-		     (if (and buf-id (twittering-status-id< id buf-id))
-			 (let ((next-pos
-				(twittering-get-next-status-head pos)))
-			   (setq pos (or next-pos (point-max)))
-			   next-pos)
-		       nil)))
-	       (unless (twittering-status-id= id (get-text-property pos 'id))
-		 (let ((formatted-status
-			(twittering-format-status
-			 status twittering-status-format))
-		       (separator "\n"))
-		   (goto-char pos)
-		   (insert formatted-status separator)))))
-	   twittering-timeline-data)))
+      (unless additional
+	(erase-buffer))
+      (let ((pos (twittering-get-first-status-head)))
+	(mapc (lambda (status)
+		(let* ((id (cdr (assoc 'id status))))
+		  ;; Find where the status should be inserted.
+		  (while
+		      (let* ((buf-id (get-text-property pos 'id)))
+			(if (and buf-id (twittering-status-id< id buf-id))
+			    (let ((next-pos
+				   (twittering-get-next-status-head pos)))
+			      (setq pos (or next-pos (point-max)))
+			      next-pos)
+			  nil)))
+		  (unless (twittering-status-id= id (get-text-property pos 'id))
+		    (let ((formatted-status
+			   (twittering-format-status
+			    status twittering-status-format))
+			  (separator "\n"))
+		      (goto-char pos)
+		      (insert formatted-status separator)))))
+	      twittering-timeline-data))
       (if (and twittering-image-stack window-system)
 	  (clear-image-cache))
       (setq buffer-read-only t)
-      (debug-print (current-buffer))
-      (if additional
-	  (if twittering-scroll-mode
-	      (when (eq point (point-min))
-		;; Cancel the modification applied before insertion.
-		(goto-char (max (1- (point)) (point-min))))
-	    ;; After additional insertion, the current position exists on the
-	    ;; same status if point != (point-min).
-	    ;; Go to the original position.
-	    (goto-char point))
-	;; Go to the beginning of buffer after full insertion.
-	(goto-char (point-min))))
-    ))
+      (debug-print (current-buffer)))
+    (if additional
+	(if window-list
+	    (mapc (lambda (x)
+		    (with-selected-window (car x)
+		      (apply 'twittering-render-timeline-1 (cdr x))))
+		  point-list)
+	  (with-current-buffer buffer
+	    (apply 'twittering-render-timeline-1 point-list)))
+      (goto-char (point-min)))))
 
 (defun twittering-make-display-spec-for-icon (image-url)
   "Return the specification for `display' text property, which

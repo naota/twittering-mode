@@ -5,6 +5,9 @@
 	tweet message" format.
 	(twittering-status-format): Add "original tweet message"
 	description.
+	(twittering-point-list)
+	(twittering-render-timeline-1): New function.
+	(twittering-render-timeline): Scroll with id for each windows.
 
 2010-01-21  Satoshi Yatagawa  <yata_github@y.hauN.org>
 
