@@ -1,3 +1,67 @@
+2010-01-31  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-http-get-default-sentinel):
+	rearranged.
+
+	* twittering-mode.el (twittering-start-http-ssl-session): return
+	the process object.
+	(twittering-start-http-non-ssl-session): likewise.
+	(twittering-get-tweets): likewise.
+
+	* twittering-mode.el (twittering-process-info-alist): new variable
+	for managing active process and timeline spec being retrieved by
+	the process.
+	(twittering-register-process): new function for registering a pair
+	of process and timeline spec.
+	(twittering-release-process): new function for releasing a process.
+	(twittering-get-timeline-spec-from-process): new function for
+	getting timeline spec retrieved by the given process.
+	(twittering-http-get-default-sentinel): discard statuses if
+	the retrieved spec differs from the last requested one.
+	(twittering-get-and-render-timeline): register a pair of the
+	requested timeline spec and process for retrieving it.
+
+2010-01-30  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-fill-string): use `frame-width'
+	only if no windows display the `*twittering*' buffer.
+
+2010-01-29  Daiji Kanematsu  <daijik@gmail.com>
+
+	* twittering-mode.el (toplevel): add `easy-menu-define' in order
+	to add the menu `Twitter'.
+
+2010-01-29  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-fill-string): Add an extra
+	argument to `min' for avoiding error "Wrong number of arguments:
+	min, 0".
+
+2010-01-28  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-render-timeline): simplified by
+	using `insert-before-markers' instead of `insert'. This removes
+	additional movement of points for scroll-mode.
+
+2010-01-26  Satoshi Yatagawa  <yata_github@y.hauN.org>
+	
+	* twittering-mode.el (toplevel): Require 'unicode explicitly on
+	Emacs21. See a comment of `twittering-ucs-to-char' for more
+	details.
+	(twittering-ucs-to-char): Check (featurep 'unicode) instead of
+	(featurep 'mucs).
+	(twittering-ucs-to-char): Update comment.
+
+	* twittering-mode.el (toplevel): On Emacs21, always call
+	`set-terminal-coding-system'.
+
+2010-01-25  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-format-status): Call
+	`twittering-make-display-spec-for-icon' only when `window-system'
+	is non-nil to avoid error "Non-X frame used" under Emacs which is
+	using a text-only terminal.
+
 2010-01-23  Naohiro Aota  <naota@elisp.net>
 
 	* twittering-mode.el (twittering-home-timeline): Add new funciton.
@@ -8,6 +72,38 @@
 	(twittering-point-list)
 	(twittering-render-timeline-1): New function.
 	(twittering-render-timeline): Scroll with id for each windows.
+
+2010-01-23  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-fill-string): adjust
+	`fill-column' to the minimum width of windows displaying
+	`*twittering*' buffer. Thanks to Naohiro Aota.
+
+	* twittering-mode.el (twittering-render-timeline): take account of
+	multiple windows displaying `*twittering*' buffer.
+	Thanks to Naohiro Aota.
+
+	* twittering-mode.el (twittering-format-status): fix an incorrect
+	index on filling text for the specifier "%t".
+
+2010-01-22  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-initial-timeline-spec-string):
+	Change value to ":home" from ":friends".
+
+	* twittering-mode.el (twittering-status-to-status-datum): Don't
+	refer to `twittering-use-native-retweet'.
+
+	* twittering-mode.el (twittering-http-get-list-index-sentinel):
+	Fix a reference to `mes' as a variable, not as a function.
+
+2010-01-22  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-fill-string): add new function
+	for generating filled string.
+	(twittering-format-status): use `twittering-fill-string'.
+	(twittering-render-timeline): remove unnecessary binding of the
+	variable `fill-column'.
 
 2010-01-21  Satoshi Yatagawa  <yata_github@y.hauN.org>
 
