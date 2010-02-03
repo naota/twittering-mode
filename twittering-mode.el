@@ -1688,6 +1688,7 @@ If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
 	   user-protected
 	   regex-index
 	   (retweeted-status-data (cddr (assq 'retweeted_status status-data)))
+	   original-created-at
 	   original-user-name
 	   original-user-screen-name)
 
@@ -1696,7 +1697,8 @@ If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
 	(setq original-user-screen-name (twittering-decode-html-entities
 					 (assq-get 'screen_name user-data))
 	      original-user-name (twittering-decode-html-entities
-				  (assq-get 'name user-data)))
+				  (assq-get 'name user-data))
+	      original-created-at (assq-get 'created_at status-data))
 	(setq status-data retweeted-status-data
 	      user-data (cddr (assq 'user retweeted-status-data))))
 
@@ -1705,7 +1707,8 @@ If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
 		  (assq-get 'text status-data)))
       (setq source (twittering-decode-html-entities
 		    (assq-get 'source status-data)))
-      (setq created-at (assq-get 'created_at status-data))
+      (setq created-at (or original-created-at
+			   (assq-get 'created_at status-data)))
       (setq truncated (assq-get 'truncated status-data))
       (setq in-reply-to-status-id
 	    (twittering-decode-html-entities
@@ -1901,27 +1904,27 @@ If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
 		    window-list)))
       (twittering-update-mode-line)
       (setq buffer-read-only nil)
-      (save-excursion
-	(unless additional
-	  (erase-buffer))
-	(let ((pos (twittering-get-first-status-head)))
-	  (mapc
-	   (lambda (status)
-	     (let* ((id (cdr (assoc 'id status))))
-	       ;; Find where the status should be inserted.
-	       (while
-		   (let* ((buf-id (get-text-property pos 'id)))
-		     (if (and buf-id (twittering-status-id< id buf-id))
-			 (let ((next-pos
-				(twittering-get-next-status-head pos)))
-			   (setq pos (or next-pos (point-max)))
-			   next-pos)
-		       nil)))
-	       (unless (twittering-status-id= id (get-text-property pos 'id))
-		 (let ((formatted-status
-			(twittering-format-status
-			 status twittering-status-format))
-		       (separator "\n"))
+      (unless additional
+	(erase-buffer))
+      (let ((pos (twittering-get-first-status-head)))
+	(mapc
+	 (lambda (status)
+	   (let* ((id (cdr (assoc 'id status))))
+	     ;; Find where the status should be inserted.
+	     (while
+		 (let* ((buf-id (get-text-property pos 'id)))
+		   (if (and buf-id (twittering-status-id< id buf-id))
+		       (let ((next-pos
+			      (twittering-get-next-status-head pos)))
+			 (setq pos (or next-pos (point-max)))
+			 next-pos)
+		     nil)))
+	     (unless (twittering-status-id= id (get-text-property pos 'id))
+	       (let ((formatted-status
+		      (twittering-format-status
+		       status twittering-status-format))
+		     (separator "\n"))
+		 (save-excursion
 		   (goto-char pos)
 		   ;; Use `insert-before-markers' in order to keep
 		   ;; which status is pointed by each marker.
@@ -1929,8 +1932,8 @@ If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
 		   ;; Now, `pos' points the head of the status.
 		   ;; It must be moved to the current point
 		   ;; in order to skip the status inserted just now.
-		   (setq pos (point))))))
-	   twittering-timeline-data)))
+		   (setq pos (point)))))))
+	 twittering-timeline-data))
       (if (and twittering-image-stack window-system)
 	  (clear-image-cache))
       (setq buffer-read-only t)
