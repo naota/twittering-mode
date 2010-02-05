@@ -316,7 +316,7 @@ SCHEME must be \"http\" or \"https\"."
 
 (defvar twittering-icon-mode nil
   "You MUST NOT CHANGE this variable directly.
-You should change through function'twittering-icon-mode'")
+You should change through function `twittering-icon-mode'.")
 
 (make-variable-buffer-local 'twittering-icon-mode)
 (defun twittering-icon-mode (&optional arg)
@@ -344,8 +344,8 @@ is non-nil. If this variable is non-nil, icon images are converted by
 invoking \"convert\". Otherwise, cropped images are displayed.")
 
 (defun twittering-image-type (image-url buffer)
-  "Return the type of a given image based on the URL(IMAGE-URL)
-and its contents(BUFFER)"
+  "Return the type of a given image based on the URL (IMAGE-URL)
+and its contents (BUFFER)"
   (let ((type-cache (assoc image-url twittering-image-type-cache))
 	(case-fold-search t))
     (if type-cache
@@ -401,7 +401,7 @@ and its contents(BUFFER)"
 (defvar twittering-sign-simple-string nil)
 
 (defun twittering-sign-string-default-function ()
-  "Tweet append sign string:simple "
+  "Append sign string to tweet."
   (if twittering-sign-simple-string
       (format " [%s]" twittering-sign-simple-string)
     ""))
@@ -418,7 +418,7 @@ and its contents(BUFFER)"
   (funcall twittering-sign-string-function))
 
 (defun twittering-update-mode-line ()
-  "Update mode line"
+  "Update mode line."
   (let ((enabled-options nil)
 	(spec-string twittering-last-retrieved-timeline-spec-string))
     (when twittering-jojo-mode
@@ -744,8 +744,8 @@ Return cons of the spec and the rest string."
    ))
 
 (defun twittering-string-to-timeline-spec (spec-str)
-  "Convert STR into a timeline spec.
-Return nil if STR is invalid as a timeline spec."
+  "Convert SPEC-STR into a timeline spec.
+Return nil if SPEC-STR is invalid as a timeline spec."
   (let ((result-pair (twittering-extract-timeline-spec spec-str)))
     (if (and result-pair (string= "" (cdr result-pair)))
 	(car result-pair)
@@ -1109,6 +1109,9 @@ Return nil if STR is invalid as a timeline spec."
 
 (defun twittering-update-status-from-pop-up-buffer (&optional init-str reply-to-id)
   (interactive)
+  (when (and (null init-str)
+	     twittering-current-hashtag)
+    (setq init-str (format " #%s " twittering-current-hashtag)))
   (let ((buf (generate-new-buffer twittering-edit-buffer)))
     (setq twittering-pre-edit-window-configuration
 	  (current-window-configuration))
@@ -1179,7 +1182,7 @@ Return nil if STR is invalid as a timeline spec."
 ;;;
 
 (defun twittering-find-curl-program ()
-  "Returns an appropriate 'curl' program pathname or nil if not found."
+  "Returns an appropriate `curl' program pathname or nil if not found."
   (or (executable-find "curl")
       (let ((windows-p (find system-type '(windows-nt cygwin)))
 	    (curl.exe
@@ -1196,7 +1199,7 @@ Return nil if STR is invalid as a timeline spec."
 METHOD    : http method
 HEADERS   : http request heades in assoc list
 HOST      : remote host name
-PORT      : destination port number. nil means default port(http: 80, https: 443)
+PORT      : destination port number. nil means default port (http: 80, https: 443)
 PATH      : http request path
 PARAMETERS: http request parameters (query string)
 "
@@ -1381,7 +1384,7 @@ Available keywords:
   :schema
   :uri
   :query-string
-  "
+"
   (let* ((schema (if twittering-use-ssl "https" "http"))
 	 (default-port (if twittering-use-ssl 443 80))
 	 (port (if port port default-port))
@@ -1507,21 +1510,28 @@ Available keywords:
 	   (("200")
 	    (let* ((reversed-statuses
 		    (twittering-xmltree-to-status body))
-		   (statuses (reverse reversed-statuses)))
+		   (statuses (reverse reversed-statuses))
+		   (id-table (make-hash-table :test 'equal)))
+	      (mapc
+	       (lambda (status)
+		 (let ((id (cdr (assq 'id status)))
+		       (source-id (cdr-safe (assq 'source-id status))))
+		   (puthash id t id-table)
+		   (when source-id
+		     (puthash source-id t id-table))))
+	       twittering-timeline-data)
 	      (setq twittering-new-tweets-count
 		    (count t (mapcar
-			      #'twittering-cache-status-datum
+			      (lambda (status)
+				(twittering-cache-status-datum status
+							       id-table))
 			      statuses))))
 	    (setq twittering-timeline-data
 		  (sort twittering-timeline-data
 			(lambda (status1 status2)
-			  (let ((created-at1
-				 (twittering-created-at-to-seconds
-				  (cdr (assoc 'created-at status1))))
-				(created-at2
-				 (twittering-created-at-to-seconds
-				  (cdr (assoc 'created-at status2)))))
-			    (> created-at1 created-at2)))))
+			  (let ((id1 (cdr (assoc 'id status1)))
+				(id2 (cdr (assoc 'id status2))))
+			    (twittering-status-id< id2 id1)))))
 	    (if (and (< 0 twittering-new-tweets-count)
 		     noninteractive)
 		(run-hooks 'twittering-new-tweets-hook))
@@ -1621,7 +1631,7 @@ PARAMETERS is alist of URI parameters.
 
 (defun twittering-get-response-header (buffer)
   "Exract HTTP response header from HTTP response.
-`buffer' may be a buffer or the name of an existing buffer which contains the HTTP response."
+BUFFER may be a buffer or the name of an existing buffer which contains the HTTP response."
   (with-current-buffer buffer
     (save-excursion
       (goto-char (point-min))
@@ -1636,7 +1646,7 @@ PARAMETERS is alist of URI parameters.
 (defun twittering-get-response-body (buffer)
   "Exract HTTP response body from HTTP response, parse it as XML, and return a
 XML tree as list. Return nil when parse failed.
-`buffer' may be a buffer or the name of an existing buffer. "
+BUFFER may be a buffer or the name of an existing buffer."
   (with-current-buffer buffer
     (save-excursion
       (goto-char (point-min))
@@ -1651,25 +1661,26 @@ XML tree as list. Return nil when parse failed.
 	(error "Failure: invalid HTTP response"))
       )))
 
-(defun twittering-cache-status-datum (status-datum &optional data-var)
-  "Cache status datum into data-var(default twittering-timeline-data)
-If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
+(defun twittering-cache-status-datum (status-datum id-table &optional data-var)
+  "Cache STATUS-DATUM into DATA-VAR (default twittering-timeline-data)
+If ID of STATUS-DATUM is already in ID-TABLE, return nil. If not, return t."
   (if (null data-var)
       (setf data-var 'twittering-timeline-data))
-  (let ((id (cdr (assq 'id status-datum))))
-    (if (or (null (symbol-value data-var))
-	    (not (find-if
-		  (lambda (item)
-		    (string= id (cdr (assq 'id item))))
-		  (symbol-value data-var))))
-	(progn
-	  (if twittering-jojo-mode
-	      (twittering-update-jojo (cdr (assq 'user-screen-name
-						 status-datum))
-				      (cdr (assq 'text status-datum))))
-	  (set data-var (cons status-datum (symbol-value data-var)))
-	  t)
-      nil)))
+  (let* ((id (cdr (assq 'id status-datum)))
+	 (source-id (cdr-safe (assq 'source-id status-datum)))
+	 (retrieved
+	  (or (gethash id id-table)
+	      (and source-id (gethash source-id id-table)))))
+    (unless (and (symbol-value data-var) retrieved)
+      (if twittering-jojo-mode
+	  (twittering-update-jojo (cdr (assq 'user-screen-name
+					     status-datum))
+				  (cdr (assq 'text status-datum))))
+      (set data-var (cons status-datum (symbol-value data-var)))
+      (puthash id t id-table)
+      (when source-id
+	(puthash source-id t id-table))
+      t)))
 
 (defun twittering-status-to-status-datum (status)
   (flet ((assq-get (item seq)
@@ -1690,19 +1701,28 @@ If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
 	   (retweeted-status-data (cddr (assq 'retweeted_status status-data)))
 	   original-created-at
 	   original-user-name
-	   original-user-screen-name)
+	   original-user-screen-name
+	   source-id
+	   source-created-at)
 
       ;; save original status and adjust data if status was retweeted
-      (when retweeted-status-data
+      (cond
+       (retweeted-status-data
 	(setq original-user-screen-name (twittering-decode-html-entities
 					 (assq-get 'screen_name user-data))
 	      original-user-name (twittering-decode-html-entities
 				  (assq-get 'name user-data))
 	      original-created-at (assq-get 'created_at status-data))
 	(setq status-data retweeted-status-data
-	      user-data (cddr (assq 'user retweeted-status-data))))
+	      user-data (cddr (assq 'user retweeted-status-data)))
 
-      (setq id (assq-get 'id status-data))
+	;; id and created-at of source tweet.
+	(setq source-id (assq-get 'id status-data))
+	(setq source-created-at (assq-get 'created_at status-data)))
+       (t
+	(setq id (assq-get 'id status-data))
+	(setq created-at (assq-get 'created_at status-data))))
+
       (setq text (twittering-decode-html-entities
 		  (assq-get 'text status-data)))
       (setq source (twittering-decode-html-entities
@@ -1828,7 +1848,9 @@ If STATUS-DATUM is already in DATA-VAR, return nil. If not, return t."
 	    user-url
 	    user-protected
 	    original-user-name
-	    original-user-screen-name)))))
+	    original-user-screen-name
+	    source-id
+	    source-created-at)))))
 
 (defun twittering-xmltree-to-status (xmltree)
   (mapcar #'twittering-status-to-status-datum
@@ -2050,9 +2072,9 @@ following symbols;
     ))
 
 (defun twittering-format-status (status format-str)
-  "Format a string out of a format-str and STATUS.
-Specification of format-str is described in the document for the
-variable `twittering-status-format'"
+  "Format a string out of FORMAT-STR and STATUS.
+Specification of FORMAT-STR is described in the document for the
+variable `twittering-status-format'."
   (flet ((attr (key)
 	       (assocref key status))
 	 (profile-image
@@ -2448,11 +2470,11 @@ variable `twittering-status-format'"
     image-data))
 
 (defun twittering-tinyurl-get (longurl)
-  "Tinyfy LONGURL"
+  "Tinyfy LONGURL."
   (let ((api (cdr (assoc twittering-tinyurl-service
 			 twittering-tinyurl-services-map))))
     (unless api
-      (error "Invaild `twittering-tinyurl-service'. try one of %s"
+      (error "Invalid `twittering-tinyurl-service'. try one of %s"
 	     (mapconcat (lambda (x)
 			  (symbol-name (car x)))
 			twittering-tinyurl-services-map ", ")))
