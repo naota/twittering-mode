@@ -1,8 +1,65 @@
+2010-02-07  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-http-get): Add an optional
+	argument for a response data format.
+	(twittering-http-post): Likewise.
+	(twittering-get-list-index): Adjust callers.
+	(twittering-http-post): Delete unused argument `contents'.
+
+	* twittering-mode.el (twittering-http-get-default-sentinel): Check
+	status-code here instead of `twittering-http-default-sentinel'.
+	(twittering-http-get-list-index-sentinel): Likewise.
+	(twittering-http-post-default-sentinel): Likewise.
+	(twittering-http-default-sentinel): Adjust callers.
+
+	* twittering-mode.el (twittering-http-get-list-index-sentinel):
+	Set "" explicitly if user does not have a list.
+
+2010-02-06  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-http-default-sentinel): New defun
+	to share code between `twittering-http-get-default-sentinel',
+	`twittering-http-get-list-index-sentinel', and
+	`twittering-http-post-default-sentinel'.
+	(twittering-http-get-default-sentinel): Adjust function.
+	(twittering-http-get-list-index-sentinel): Likewise.
+	(twittering-http-post-default-sentinel): Likewise.
+	(twittering-start-http-ssl-session): Adjust callers.
+	(twittering-start-http-non-ssl-session): Likewise.
+
+2010-02-06  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-edit-post-status): Don't add
+	parameter `in_reply_to_status_id' if the tweet does not begin
+	with `@'.
+	(twittering-update-status-from-minibuffer): Likewise.
+
+	* twittering-mode.el (twittering-status-not-blank-p): Fix a regexp
+	pattern for USER.
+	(twittering-status-to-status-datum): Likewise.
+	(twittering-http-get-list-index-sentinel): Change a regexp pattern
+	for LISTNAME.
+
+2010-02-06  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-get-and-render-timeline): ignore
+	non-interactive request if a process is waiting for responses.
+
+	* twittering-mode.el (twittering-mode): set `buffer-read-only' to
+	t explicitly.
+	(twittering-render-timeline): bind `buffer-read-only' with `let*'
+	locally.
+
 2010-02-05  Satoshi Yatagawa  <yata_github@y.hauN.org>
 
 	* twittering-mode.el (twittering-update-status-from-pop-up-buffer):
 	Use the current hashtag if set; same as
 	`twittering-update-status-from-minibuffer'.
+
+2010-02-05  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-format-status): replace a lacked
+	property by an empty string.
 
 2010-02-04  Tadashi MATSUO  <tad@mymail.twin.jp>
 
