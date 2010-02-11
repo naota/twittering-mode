@@ -1,3 +1,111 @@
+2010-02-11  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el: No longer clear fetched timeline when
+	switching to another timeline.
+
+	* twittering-mode.el (twittering-timeline-data-table): New defvar.
+	(twittering-http-get-default-sentinel): Save current timeline into
+	`twittering-timeline-data-table' when retrieving it successfully.
+	(twittering-get-and-render-timeline): Load target timeline from
+	`twittering-timeline-data-table' when switching to another
+	timeline.
+
+2010-02-10  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-status-not-blank-p): Fix the
+	regexp for case of "text @user".
+
+	* test/test-twittering-mode.el (test-status-not-blank-p): Add a
+	testcase.
+
+	* twittering-mode.el (twittering-setup-proxy): Return t explicitly
+	when the proxy related configurations are consistent.
+	(twittering-toggle-proxy): Call `twittering-setup-proxy'.
+
+2010-02-09  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-http-get-default-sentinel): Get a
+	buffer associate with the process from calling `process-buffer'
+	instead of `current-buffer'.
+
+	* twittering-mode.el (twittering-edit-cancel-status): Confirm
+	before calling `twittering-edit-close' when an edit buffer was
+	modified.
+	(twittering-update-status-from-pop-up-buffer): Mark an edit buffer
+	as unmodified.
+
+	* twittering-mode.el (twittering-edit-length-check): Calculate
+	length of a tweet with a sign string.
+
+	* twittering-mode.el (twittering-native-retweet): Truncate a tweet
+	by width instead of length.
+	(twittering-favorite): Likewise.
+
+2010-02-09  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-goto-previous-status): simplified.
+
+	* twittering-mode.el (twittering-goto-next-status): retrieve
+	additional statuses if the function is called at the end of the
+	buffer.
+
+	* twittering-mode.el (twittering-render-timeline): use `insert'
+	when inserting a status at the end of the buffer in order to keep
+	the marker pointing the end of the buffer.
+
+	* twittering-mode.el (twittering-render-timeline): move the
+	position correctly even if the buffer is invisible.
+
+2010-02-08  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-http-default-sentinel): Delete a
+	call to `twittering-release-process' in the BODYFORM to avoid a
+	double release.
+
+2010-02-08  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-http-default-sentinel): call
+	`twittering-release-process' even if some errors happen.
+	(twittering-http-get-default-sentinel): remove invocation of
+	`twittering-release-process'.
+
+2010-02-08  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-http-get-default-sentinel): Call
+	`twittering-release-process' when status code is not equal to
+	"200", forgotten in the 2010-02-06 changing.
+
+	* twittering-mode.el (twittering-status-to-status-datum): Change
+	`regex-index' variable to local scope from global one.
+	(twittering-status-to-status-datum): Rename `regex-index' to
+	`regexp-index'.
+
+	* twittering-mode.el (debug-print): Reduce redundant calls of
+	`insert' because it can take multiple arguments.
+	(debug-printf): Remove an unnecessary call to `concat' because
+	`insert' can take multiple arguments.
+
+2010-02-07  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* test/test-twittering-mode.el (test-format-status): replace the
+	format specifier "%t" with "%T".
+
+	* twittering-mode.el (twittering-extract-timeline-spec): fix the
+	regexp for "filter" timeline spec.
+	* test/test-twittering-mode.el (timeline-spec): add a test for
+	trailing backslashes.
+
+	* twittering-mode.el (twittering-extract-timeline-spec): add error
+	messages for some conditions.
+
+	* twittering-mode.el
+	(twittering-read-timeline-spec-with-completion): fix the regexp
+	for judging whether a list name is required or not.
+
+	* twittering-mode.el
+	(twittering-read-timeline-spec-with-completion): catch errors on
+	interpreting timeline spec string.
+
 2010-02-07  Satoshi Yatagawa  <yata_github@y.hauN.org>
 
 	* twittering-mode.el (twittering-http-get): Add an optional
@@ -223,8 +331,8 @@
 2010-01-20  Satoshi Yatagawa  <yata_github@y.hauN.org>
 
 	* twittering-mode.el (twittering-http-get-default-sentinel): Show
-	the reason phrase with status code if status code is not "200";
-	same as `twittering-http-post-default-sentinel'.
+	the reason phrase with status code if status code is not equal to
+	"200"; same as `twittering-http-post-default-sentinel'.
 	(twittering-http-get-list-index-sentinel): Likewise.
 
 	* twittering-mode.el (twittering-http-status-line-regexp): New
