@@ -1,3 +1,80 @@
+2010-02-25  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-format-status): Use the return
+	value of the flet'ed function `attr' directly for the specifier
+	"%L", forgotten in the 2010-02-18 changing.
+
+	* twittering-mode.el (twittering-retrieve-image): Check the return
+	value of `call-process-region'.
+	(twittering-make-display-spec-for-icon): Check the return value of
+	`twittering-retrieve-image'.
+
+	* twittering-mode.el (twittering-format-status): Don't check
+	`twittering-image-data-table' here.
+	(twittering-format-status): Don't define `profile-image' as
+	flet'ed function for the specifier "%i".
+
+	* twittering-mode.el (twittering-get-tweets): Don't call
+	`twittering-retrieve-image' here.
+	 
+	* twittering-mode.el (twittering-retrieve-image): Bind
+	`url-show-status' locally to inhibit showing a progress message.
+	(twittering-tinyurl-get): Likewise.
+
+	* twittering-mode.el (twittering-image-type): Don't use the
+	external command `file' because Emacs can display only an image
+	which is recongnized by `image-type-from-data'.
+	(twittering-retrieve-image): Don't look up
+	`twittering-image-data-table' here.
+	(twittering-make-display-spec-for-icon): Call
+	`twittering-retrieve-image' only when `gethash' returns nil.
+
+2010-02-22  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-atom-xmltree-to-status-datum):
+	Call `twittering-decode-html-entities' to decode entities
+	properly.
+
+	* twittering-mode.el (twittering-get-error-message): Change the
+	first argument to `buffer' from `proc'.
+	(twittering-http-get-default-sentinel): Adjust callers.
+	(twittering-http-get-list-index-sentinel): Likewise.
+	(twittering-http-post-default-sentinel): Likewise.
+
+2010-02-20  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-current-timeline-spec): Check
+	`spec-string' is a string before calling
+	`twittering-string-to-timeline-spec'.
+	(twittering-get-and-render-timeline): Likewise.
+	(twittering-read-timeline-spec-with-completion): Likewise.
+
+	* twittering-mode.el (twittering-read-timeline-spec-with-completion):
+	Return nil explicitly when `twittering-string-to-timeline-spec'
+	return nil.
+
+	* twittering-mode.el (twittering-retrieve-image): Use `unless'
+	instead of `when'.
+	(twittering-icon-mode): Likewise.
+	(twittering-scroll-mode): Likewise.
+	(twittering-jojo-mode): Likewise.
+	(twittering-toggle-reverse-mode): Likewise.
+
+2010-02-19  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-delete-ca-cert-file): New defun.
+	(twittering-ensure-ca-cert): Add it as a hook into
+	`kill-emacs-hook'.
+
+	* twittering-mode.el (twittering-get-error-message): New defun to
+	pickup an error message from a xmltree.
+	(twittering-http-get-default-sentinel): Use it.
+	(twittering-http-get-list-index-sentinel): Likewise.
+	(twittering-http-post-default-sentinel): Likewise.
+
+	* twittering-mode.el (twittering-http-get-list-index-sentinel):
+	Call `twittering-get-response-body' instead of `xml-parse-region'.
+
 2010-02-19  Tadashi MATSUO  <tad@mymail.twin.jp>
 
 	* twittering-mode.el (twittering-set-window-end): use
@@ -47,6 +124,13 @@
 	(twittering-timeline-spec-primary-p): Likewise.
 	(twittering-timeline-spec-to-host-method): Likewise.
 	(twittering-timeline-spec-alias): Likewise in a	comment.
+
+	* twittering-mode.el (twittering-icon-mode): Call
+	`twittering-update-mode-line' and `twittering-render-timeline'
+	only when mode was changed.
+	(twittering-scroll-mode): Likewise.
+	(twittering-jojo-mode): Likewise.
+	(twittering-toggle-reverse-mode): Likewise.
 
 2010-02-16  Tadashi MATSUO  <tad@mymail.twin.jp>
 
@@ -504,6 +588,26 @@
 
 	* twittering-mode.el (twittering-fill-string): use `frame-width'
 	only if no windows display the `*twittering*' buffer.
+
+	* twittering-mode.el (twittering-for-each-property-region): new
+	function to process each region with a certain property.
+
+	* twittering-mode.el (twittering-timer-for-redisplaying): new
+	variable for timer of redisplaying statuses.
+	(twittering-timer-interval-for-redisplaying): new variable
+	specifying the interval of redisplaying statuses.
+	(twittering-redisplay-status-on-buffer): new function to redisplay
+	statuses on buffer.
+	(twittering-format-status): append `need-to-be-update' property to
+	the specifier "%@" and "%FILL{...}" including "%@".
+	(twittering-start): start the timer of redisplaying statuses.
+	(twittering-stop): stop the timer of redisplaying statuses.
+
+	* twittering-mode.el (twittering-make-passed-time-string): new
+	function to generate a string displayed as passed time of a
+	status.
+	(twittering-format-status): use
+	`twittering-make-passed-time-string' for the specifier "%@".
 
 2010-01-29  Daiji Kanematsu  <daijik@gmail.com>
 
