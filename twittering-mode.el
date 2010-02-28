@@ -1966,7 +1966,7 @@ BUFFER may be a buffer or the name of an existing buffer."
 	   user-protected
 	   regex-index
 	   (retweeted-status-data (cddr (assq 'retweeted_status status-data)))
-	   original-created-at
+	   original-created-at ;; need not export
 	   original-user-name
 	   original-user-screen-name
 	   source-id
@@ -1980,6 +1980,11 @@ BUFFER may be a buffer or the name of an existing buffer."
 	      original-user-name (twittering-decode-html-entities
 				  (assq-get 'name user-data))
 	      original-created-at (assq-get 'created_at status-data))
+
+	;; use id and created-at issued when retweeted.
+	(setq id (assq-get 'id status-data))
+	(setq created-at (assq-get 'created_at status-data))
+
 	(setq status-data retweeted-status-data
 	      user-data (cddr (assq 'user retweeted-status-data)))
 
@@ -1994,8 +1999,6 @@ BUFFER may be a buffer or the name of an existing buffer."
 		  (assq-get 'text status-data)))
       (setq source (twittering-decode-html-entities
 		    (assq-get 'source status-data)))
-      (setq created-at (or original-created-at
-			   (assq-get 'created_at status-data)))
       (setq truncated (assq-get 'truncated status-data))
       (setq in-reply-to-status-id
 	    (twittering-decode-html-entities
@@ -2564,7 +2567,7 @@ variable `twittering-status-format'."
 			   (display-spec (twittering-make-display-spec-for-icon
 					  profile-image-url)))
 		      (if display-spec
-			  (let ((icon-string " "))
+			  (let ((icon-string (copy-sequence " ")))
  			    (set-text-properties 0 (length icon-string)
 						 display-spec icon-string)
 			    (add-to-list 'twittering-image-stack
