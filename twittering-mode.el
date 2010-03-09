@@ -239,7 +239,14 @@ SSL connections use 'curl' command as a backend.")
 (defun twittering-buffer ()
   (twittering-get-or-generate-buffer twittering-buffer))
 
+(defvar twittering-format-status-function-source ""
+  "The status format string that has generated the current
+`twittering-format-status-function'.")
+(defvar twittering-format-status-function nil
+  "The formating function generated from `twittering-format-status-function-source'.")
+
 (defvar twittering-timeline-data-table (make-hash-table :test 'equal))
+(defvar twittering-statuses-table (make-hash-table :test 'equal))
 
 (defvar twittering-username-face 'twittering-username-face)
 (defvar twittering-uri-face 'twittering-uri-face)
@@ -286,8 +293,8 @@ SCHEME must be \"http\" or \"https\"."
            (proxy (if proxy-service (cdr proxy-service) nil)))
       (if (and proxy
                (string-match "^\\([^:]+\\):\\([0-9]+\\)$" proxy))
-          (let* ((host (match-string 1 proxy))
-                 (port (string-to-number (match-string 2 proxy))))
+          (let ((host (match-string 1 proxy))
+		(port (string-to-number (match-string 2 proxy))))
             (cons host port))
         nil)))
    (t
@@ -472,9 +479,12 @@ and its contents (BUFFER)"
     ;; So, we load "kinsoku.el" in advance if necessary.
     (load "international/kinsoku"))
   (let* ((kinsoku-limit 1)
-	 (adjustment (if enable-kinsoku
-			 kinsoku-limit
-		       0))
+	 (adjustment (+ (if (and (boundp 'fill-prefix) (stringp fill-prefix))
+			    (string-width fill-prefix)
+			  0)
+			(if enable-kinsoku
+			    kinsoku-limit
+			  0)))
 	 (min-width
 	  (apply 'min
 		 (or
@@ -572,7 +582,7 @@ defined in Emacs21."
       (nreverse result))))
 
 (defun twittering-completing-read (prompt collection &optional predicate require-match initial-input hist def inherit-input-method)
-"Read a string in the minibuffer, with completion.
+  "Read a string in the minibuffer, with completion.
 This is a modified version of `completing-read' and accepts candidates
 as a list of a string on Emacs21."
   ;; completing-read() of Emacs21 does not accepts candidates as
@@ -804,8 +814,8 @@ Return cons of the spec and the rest string."
 	 (t
 	  (error "Alias \"%s\" is undefined" name))))))
    ((string-match "^(" str)
-    (let* ((rest (concat "+" (substring str (match-end 0))))
-	   (result '()))
+    (let ((rest (concat "+" (substring str (match-end 0))))
+	  (result '()))
       (while (and rest (string-match "^\\+" rest))
 	(let* ((spec-string (substring rest (match-end 0)))
 	       (pair (twittering-extract-timeline-spec
@@ -937,10 +947,10 @@ Return nil if SPEC-STR is invalid as a timeline spec."
    (t nil)))
 
 (defun twittering-add-timeline-history (&optional timeline-spec)
-  (let* ((spec-string
-	  (if timeline-spec
-	      (twittering-timeline-spec-to-string timeline-spec t)
-	    (twittering-current-timeline-spec-string))))
+  (let ((spec-string
+	 (if timeline-spec
+	     (twittering-timeline-spec-to-string timeline-spec t)
+	   (twittering-current-timeline-spec-string))))
     (when spec-string
       (when (or (null twittering-timeline-history)
 		(not (string= spec-string (car twittering-timeline-history))))
@@ -991,8 +1001,8 @@ Return nil if SPEC-STR is invalid as a timeline spec."
 	   (remove nil
 		   (mapcar
 		    (lambda (status)
-		      (let* ((id (cdr (assq 'id status)))
-			     (source-id (cdr-safe (assq 'source-id status))))
+		      (let ((id (cdr (assq 'id status)))
+			    (source-id (cdr-safe (assq 'source-id status))))
 			(unless (or (gethash id id-table)
 				    (and source-id
 					 (gethash source-id id-table)))
@@ -1051,8 +1061,8 @@ Return nil if SPEC-STR is invalid as a timeline spec."
   (apply 'append
 	 (mapcar
 	  (lambda (pair)
-	    (let* ((proc (car pair))
-		   (spec-info (cadr pair)))
+	    (let ((proc (car pair))
+		  (spec-info (cadr pair)))
 	      (if (equal spec-info spec)
 		  `(,proc)
 		nil)))
@@ -1183,11 +1193,10 @@ Return nil if SPEC-STR is invalid as a timeline spec."
 
 (defvar twittering-mode-syntax-table nil "")
 
-(if twittering-mode-syntax-table
-    ()
+(unless twittering-mode-syntax-table
   (setq twittering-mode-syntax-table (make-syntax-table))
   ;; (modify-syntax-entry ?  "" twittering-mode-syntax-table)
-  (modify-syntax-entry ?\" "w"  twittering-mode-syntax-table)
+  (modify-syntax-entry ?\" "w" twittering-mode-syntax-table)
   )
 
 (defun twittering-mode-init-variables ()
@@ -1208,6 +1217,7 @@ Return nil if SPEC-STR is invalid as a timeline spec."
   ;; (add-to-list 'minor-mode-alist '(twittering-icon-mode " tw-icon"))
   ;; (add-to-list 'minor-mode-alist '(twittering-scroll-mode " tw-scroll"))
   ;; (add-to-list 'minor-mode-alist '(twittering-jojo-mode " tw-jojo"))
+  (twittering-update-status-format)
   (twittering-set-current-timeline-spec-string
    twittering-initial-timeline-spec-string)
   (setq twittering-username-active twittering-username)
@@ -1301,9 +1311,9 @@ Return nil if SPEC-STR is invalid as a timeline spec."
     ))
 
 (defun twittering-edit-extract-status ()
-  (if (not (eq major-mode 'twittering-edit-mode))
-      ""
-    (buffer-string)))
+  (if (eq major-mode 'twittering-edit-mode)
+      (buffer-string)
+    ""))
 
 (defun twittering-edit-setup-help ()
   (let ((help-str "Keymap:
@@ -1372,7 +1382,9 @@ Return nil if SPEC-STR is invalid as a timeline spec."
 (defun twittering-edit-cancel-status ()
   (interactive)
   (when (or (not (buffer-modified-p))
-	    (y-or-n-p "Cancel this tweet? "))
+	    (prog1 (if (y-or-n-p "Cancel this tweet? ")
+		       (message "Request canceled")
+		     (message nil))))
     (twittering-edit-close)))
 
 (defun twittering-edit-next-history ()
@@ -1423,14 +1435,12 @@ Return nil if SPEC-STR is invalid as a timeline spec."
 	     (file-exists-p curl.exe) curl.exe))))
 
 (defun twittering-start-http-session (method headers host port path parameters &optional noninteractive sentinel)
-  "
-METHOD    : http method
+  "METHOD    : http method
 HEADERS   : http request heades in assoc list
 HOST      : remote host name
 PORT      : destination port number. nil means default port (http: 80, https: 443)
 PATH      : http request path
-PARAMETERS: http request parameters (query string)
-"
+PARAMETERS: http request parameters (query string)"
   (block nil
     (unless (find method '("POST" "GET") :test 'equal)
       (error "Unknown HTTP method: %s" method))
@@ -1619,8 +1629,7 @@ Available keywords:
   :headers-string
   :schema
   :uri
-  :query-string
-"
+  :query-string"
   (let* ((schema (if twittering-use-ssl "https" "http"))
 	 (default-port (if twittering-use-ssl 443 80))
 	 (port (if port port default-port))
@@ -1895,9 +1904,9 @@ BUFFER may be a buffer or the name of an existing buffer."
 	(twittering-xmltree-to-status body)))))
 
 (defun twittering-atom-xmltree-to-status-datum (atom-xml-entry)
-  (let* ((id-str (car (cddr (assq 'id atom-xml-entry))))
-	 (time-str (car (cddr (assq 'updated atom-xml-entry))))
-	 (author-str (car (cddr (assq 'name (assq 'author atom-xml-entry))))))
+  (let ((id-str (car (cddr (assq 'id atom-xml-entry))))
+	(time-str (car (cddr (assq 'updated atom-xml-entry))))
+	(author-str (car (cddr (assq 'name (assq 'author atom-xml-entry))))))
     `((created-at
        . ,(if (string-match "\\(.*\\)T\\(.*\\)Z" time-str)
 	      ;; time-str is formatted as
@@ -2095,9 +2104,9 @@ BUFFER may be a buffer or the name of an existing buffer."
 	  (setq regexp-index
 		(string-match "@\\([a-zA-Z0-9_-]+\\)\\|\\(https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+\\)" text regexp-index))
 	  (when regexp-index
-	    (let* ((matched-string (match-string-no-properties 0 text))
-		   (screen-name (match-string-no-properties 1 text))
-		   (uri (match-string-no-properties 2 text)))
+	    (let ((matched-string (match-string-no-properties 0 text))
+		  (screen-name (match-string-no-properties 1 text))
+		  (uri (match-string-no-properties 2 text)))
 	      (add-text-properties
 	       (if screen-name
 		   (+ 1 (match-beginning 0))
@@ -2227,7 +2236,7 @@ If INTERRUPT is non-nil, the iteration is stopped if FUNC returns nil."
 	  (end-marker (make-marker)))
       (set-marker-insertion-type end-marker t)
       (while
-	  (let* ((value (get-text-property beg prop)))
+	  (let ((value (get-text-property beg prop)))
 	    (if value
 		(let* ((end (next-single-property-change beg prop))
 		       (end (or end (point-max)))
@@ -2266,6 +2275,20 @@ If INTERRUPT is non-nil, the iteration is stopped if FUNC returns nil."
 ;;; display functions
 ;;;
 
+(defun twittering-render-insert-status (pos formatted-status separator)
+  (goto-char pos)
+  (cond
+   ((eq pos (point-max))
+    ;; Insert a status after the current position.
+    (insert formatted-status separator))
+   (t
+    ;; Use `insert-before-markers' in order to keep
+    ;; which status is pointed by each marker.
+    (insert-before-markers formatted-status separator)))
+  (point))
+
+(defvar twittering-show-replies 1) ;; non-nil is infinite.
+
 (defun twittering-render-timeline (&optional additional timeline-data)
   (with-current-buffer (twittering-buffer)
     (let* ((timeline-data (or timeline-data
@@ -2273,6 +2296,9 @@ If INTERRUPT is non-nil, the iteration is stopped if FUNC returns nil."
 	   (timeline-data (if twittering-reverse-mode
 			      (reverse timeline-data)
 			    timeline-data))
+	   (replied-status-id nil)
+	   (quote-prefix "    ") ;; FIXME: refer to defvar.
+	   (separator "\n")
 	   (empty (null (twittering-get-first-status-head)))
 	   (rendering-entire (or empty (not additional)))
 	   (window-list (get-buffer-window-list (current-buffer) nil t))
@@ -2283,6 +2309,7 @@ If INTERRUPT is non-nil, the iteration is stopped if FUNC returns nil."
 	   (original-pos (point))
 	   (original-buf-end (point-max))
 	   (buffer-read-only nil))
+      (twittering-update-status-format)
       (twittering-update-mode-line)
       (save-excursion
 	(when rendering-entire
@@ -2292,38 +2319,92 @@ If INTERRUPT is non-nil, the iteration is stopped if FUNC returns nil."
 		     (twittering-get-first-status-head))))
 	  (mapc
 	   (lambda (status)
-	     (let* ((id (cdr (assoc 'id status))))
+	     (let ((id (cdr (assoc 'id status))))
 	       ;; Find where the status should be inserted.
 	       (while
-		   (let* ((buf-id (get-text-property pos 'id)))
+		   (let ((buf-id (get-text-property pos 'id)))
 		     (if (and buf-id
 			      (if twittering-reverse-mode
 				  (twittering-status-id< buf-id id)
 				(twittering-status-id< id buf-id)))
 			 (let ((next-pos
-				(twittering-get-next-status-head pos)))
+				(twittering-get-next-status-head
+				 pos quote-prefix)))
 			   (setq pos (or next-pos (point-max)))
 			   next-pos)
 		       nil)))
 	       (unless (twittering-status-id= id (get-text-property pos 'id))
-		 (let ((formatted-status
-			(twittering-format-status
-			 status twittering-status-format))
-		       (separator "\n"))
-		   (goto-char pos)
-		   (cond
-		    ((eq pos (point-max))
-		     ;; Insert a status after the current position.
-		     (insert formatted-status separator))
-		    (t
-		     ;; Use `insert-before-markers' in order to keep
-		     ;; which status is pointed by each marker.
-		     (insert-before-markers formatted-status separator)))
-		   ;; Now, `pos' points the head of the status.
-		   ;; It must be moved to the current point
-		   ;; in order to skip the status inserted just now.
-		   (setq pos (point))))))
+		 (when (or (boundp 'twittering-show-replies)
+			   (or (and (booleanp twittering-show-replies)
+				    twittering-show-replies)
+			       (and (integerp twittering-show-replies)
+				    (< 0 twittering-show-replies)))
+			   ;; disable showing replies is currently default.
+			   nil)
+		   (puthash (or (cdr-safe (assoc 'source-id status))
+				(cdr (assoc 'id status)))
+			    status twittering-statuses-table)
+		   (add-to-list 'replied-status-id id))
+		 ;; Now, `pos' points the head of the status.
+		 ;; It must be moved to the current point
+		 ;; in order to skip the status inserted just now.
+		 (setq pos (twittering-render-insert-status
+			    pos (twittering-format-status status)
+			    separator)))))
 	   timeline-data)))
+      (when (setq replied-status-id (remove "" (if twittering-reverse-mode
+						   replied-status-id
+						 (reverse replied-status-id))))
+	(save-excursion
+	  (let ((twittering-status-format
+		 (replace-regexp-in-string "^" quote-prefix
+					   twittering-status-format nil t))
+		(fill-prefix quote-prefix))
+	    (twittering-update-status-format)
+	    (mapc
+	     (lambda (id)
+	       (let* ((status (gethash id twittering-statuses-table))
+		      (reply-id (cdr (assoc 'in-reply-to-status-id status)))
+		      (status (gethash reply-id twittering-statuses-table))
+		      (reply-statuses nil)
+		      (pos (twittering-get-first-status-head)))
+		 (while (and reply-id status
+			     (if (integerp twittering-show-replies)
+				 (> twittering-show-replies
+				    (length reply-statuses))
+			       t))
+		   (add-to-list 'reply-statuses status)
+		   (setq reply-id (cdr (assoc 'in-reply-to-status-id status)))
+		   (setq status (gethash reply-id twittering-statuses-table)))
+		 (when reply-statuses
+		   ;; Find where the quoted status should be inserted.
+		   (while
+		       (let ((buf-id (get-text-property pos 'id)))
+			 (if (and buf-id (twittering-status-id= id buf-id))
+			     nil
+			   (setq pos (twittering-get-next-status-head
+				      pos quote-prefix)))))
+		   (when (and pos
+			      (or twittering-reverse-mode
+				  ;; Go to the tail of this status.
+				  (setq pos (twittering-get-next-status-head
+					     pos quote-prefix))))
+		     ;; Now, `pos' points the head of the status.
+		     ;; It must be moved to the current point
+		     ;; in order to skip the status inserted just now.
+		     (setq pos (twittering-render-insert-status
+				pos (mapconcat
+				     (lambda (status)
+				       (twittering-format-status status))
+				     (if twittering-reverse-mode
+					 reply-statuses
+				       (reverse reply-statuses))
+				     separator)
+				separator))
+		     ))))
+	     replied-status-id))
+	  ;; restore it.
+	  (twittering-update-status-format)))
       (if (and twittering-image-stack window-system)
 	  (clear-image-cache))
       (debug-print (current-buffer))
@@ -2417,8 +2498,7 @@ following symbols;
   'prefix --PREFIX.
   'replacement-table --REPLACEMENT-TABLE.
   'from --FROM.
-  'processed-string --the already processed string.
-"
+  'processed-string --the already processed string."
   (let ((current-pos 0)
 	(result "")
 	(case-fold-search nil))
@@ -2456,196 +2536,254 @@ following symbols;
 	      (setq current-table (cdr current-table)))))
 	(if (not found)
 	    (setq result (concat result matched-string)))))
-    (let* ((skipped-string (substring string current-pos)))
+    (let ((skipped-string (substring string current-pos)))
       (concat result skipped-string))
     ))
 
-(defun twittering-format-status (status format-str)
-  "Format a string out of FORMAT-STR and STATUS.
+(defun twittering-parse-format-string (format-str escape specifiers)
+  "Split FORMAT-STR into a list consisting of fixed strings and specifiers
+with match-data. For example:
+ (twittering-parse-format-string
+ \"%s>>%r @%C{%m/%d %H:%M:%S} %@\\n %t\" \"%\"
+ '(\"%\" \"s\" \"r\" \"@\" \"t\" \"i\" \"C\\\\({\\\\([^}]*\\\\)}\\\\)?\"))
+returns
+ ((\"s\" \"s\" (0 1))
+ \">>\"
+ (\"r\" \"r\" (0 1))
+ \" @\"
+ (\"C\\\\({\\\\([^}]*\\\\)}\\\\)?\" \"C{%m/%d %H:%M:%S}\" (0 17 1 17 2 16))
+ \" \"
+ (\"@\" \"@\" (0 1))
+ \"\\n \"
+ (\"t\" \"t\" (0 1)))
+.
+In the result list, a fixed string is stored as a normal string.
+A format specifier is stored as a list of the regexp for the specifier,
+the matched string in FORMAT-STR and its match data."
+  (let ((pos 0)
+        (result nil)
+        (case-fold-search nil))
+    (while (string-match escape format-str pos)
+      (let ((beg (match-beginning 0)))
+        (unless (eq pos beg)
+          (setq result (cons (substring format-str pos beg) result)))
+        (let* ((rest specifiers)
+               (head (+ beg (length escape)))
+               (following (substring format-str head)))
+          (while
+              (unless (or (null rest)
+                          (string-match (concat "\\`" (car rest)) following))
+                (setq rest (cdr rest))))
+          (let ((end (if rest
+                         (+ head (match-end 0))
+                       head)))
+            (if rest
+                (setq result (cons (list (car rest)
+                                         (match-string 0 following)
+                                         (match-data))
+                                   result))
+              (setq result (cons (substring format-str beg end) result)))
+            (setq pos end)))))
+    (when (< pos (length format-str))
+      (setq result (cons (substring format-str pos) result)))
+    (nreverse result)))
+
+(defmacro twittering-generate-formater (format-str-exp escape status-sym specifier-sym specifiers)
+  "Generate lambda expression from FORMAT-STR-EXP.
+The result expression does not include specifiers except those appeared
+in FORMAT-STR-EXP.
+ESCAPE means the escape string of specifiers.
+SPECIFIERS is a list of '(SPEC-REGEXP (STATIC-BINDINGS) FORMS), where
+SPEC-REGEXP is a regexp for the specifier without ESCAPE,
+STATIC-BINDINGS means bindings determined on expanding this macro
+and FORMS generates a string for the specifier by using the argument
+of the lambda.
+In FORMS, the argument of the lambda can be refered by STATUS-SYM.
+In STATIC-BINDINGS and FORMS, the string matched with SPEC-REGEXP can be
+refered by SPECIFIER-SYM.
+Example:
+ (twittering-generate-formater
+  \"HEAD%# %CsampleSAMPLE TEST\"
+  \"%\" status fmt-following
+  ((\"%\" () \"%\")
+   (\"#\" () (cdr (assq 'id status)))
+   (\"s\" () (cdr (assq 'user-screen-name status)))
+   (\"C\\\\([a-z]+\\\\)\"
+    ((sample (match-string 1 fmt-following))
+     (sample2 sample))
+    sample)
+   ))
+ returns
+ (lambda
+   (status)
+   (concat \"HEAD\"
+           (let
+               ((fmt-following \"#\"))
+             (let nil
+               (store-match-data
+                '(0 1))
+               (cdr
+                (assq 'id status))))
+           \" \"
+           (let
+               ((fmt-following \"Csample\"))
+             (let
+                 ((sample \"sample\")
+                  (sample2 \"sample\"))
+               (store-match-data
+                '(0 7 1 7))
+               sample))
+           \"SAMPLE TEST\"))
+ "
+  (let* ((format-str (eval format-str-exp))
+         (seq (twittering-parse-format-string format-str escape
+                                              (mapcar 'car specifiers))))
+    `(lambda (,status-sym)
+       (concat
+	,@(mapcar
+	   (lambda (entry)
+	     (let ((static-def (cadr (assoc (elt entry 0) specifiers)))
+		   (dynamic-def (cddr (assoc (elt entry 0) specifiers))))
+	       (if (not (listp entry))
+		   entry
+		 (store-match-data (elt entry 2))
+		 (let* ((acc `((,specifier-sym (elt entry 1))))
+			(static-binding
+			 (mapcar
+			  (lambda (bind)
+			    (let* ((var (car bind))
+				   (value (eval `(let ,acc ,(cadr bind))))
+				   (new-bind
+				    (if (or (stringp value) (functionp value)
+					    (numberp value))
+					`(,var ,value)
+				      `(,var ',value))))
+			      (setq acc (cons new-bind acc))
+			      new-bind))
+			  static-def)))
+		   `(let ((,specifier-sym ,(elt entry 1)))
+		      (let ,static-binding
+			(store-match-data ',(elt entry 2))
+			,@dynamic-def))))))
+	   seq)))))
+
+(defmacro twittering-generate-status-formater-base (format-str)
+  `(twittering-generate-formater
+    ,format-str "%" status fmt-following
+    (("%" () "%")
+     ("#" () (cdr (assq 'id status)))
+     ("'" () (if (string= "true" (cdr (assq 'truncated status)))
+		 "..."
+	       ""))
+     ("@" ()
+      (let* ((created-at-str (cdr (assq 'created-at status)))
+	     (created-at
+	      (apply 'encode-time
+		     (parse-time-string created-at-str)))
+	     (url
+	      (twittering-get-status-url
+	       (cdr (assq 'user-screen-name status))
+	       (cdr (assq 'id status))))
+	     (properties
+	      (append
+	       `(mouse-face highlight face twittering-uri-face uri ,url)
+	       common-properties)))
+	(twittering-make-passed-time-string created-at properties)))
+     ("C\\({\\([^}]*\\)}\\)?"
+      ((time-format (or (match-string 2 fmt-following) "%H:%M:%S")))
+      (let* ((created-at-str (cdr (assq 'created-at status)))
+	     (created-at (apply 'encode-time
+				(parse-time-string created-at-str))))
+	(format-time-string time-format created-at)))
+     ("c" () (cdr (assq 'created-at status)))
+     ("d" () (cdr (assq 'user-description status)))
+     ("FACE\\[\\([a-zA-Z0-9:-]+\\)\\]{\\(\\([^{}]*?\\|{.*?[^%]}\\|%}\\)*\\)}"
+      ((face-name-str (match-string 1 fmt-following))
+       (face-sym (intern face-name-str))
+       (braced-str (match-string 2 fmt-following))
+       (formater (twittering-generate-status-formater-base braced-str)))
+      (let ((formated-str (funcall formater status)))
+	(add-text-properties 0 (length formated-str) `(face ,face-sym)
+			     formated-str)
+	formated-str))
+     ("FILL{\\(\\([^{}]*?\\|{.*?[^%]}\\|%}\\)*\\)}"
+      ((braced-str (match-string 1 fmt-following))
+       (formater (twittering-generate-status-formater-base braced-str)))
+      (twittering-fill-string (funcall formater status)))
+     ("f" () (cdr (assq 'source status)))
+     ("i" ()
+      (when (and twittering-icon-mode window-system)
+	(let* ((url (cdr (assq 'user-profile-image-url status)))
+	       (display-spec (twittering-make-display-spec-for-icon url)))
+	  (when display-spec
+	    (let ((icon-string (copy-sequence " ")))
+	      (set-text-properties 0 (length icon-string)
+				   display-spec icon-string)
+	      (add-to-list 'twittering-image-stack url)
+	      icon-string)))))
+     ("j" () (cdr (assq 'user-id status)))
+     ("L" ()
+      (let ((location (cdr (assq 'user-location status))))
+	(when (and location (not (string= location "")))
+	  (concat "[" location "]"))))
+     ("l" () (cdr (assq 'user-location status)))
+     ("p" () (if (string= "true" (cdr (assq 'user-protected status)))
+		 "[x]"
+	       ""))
+     ("r" ()
+      (let ((reply-id (cdr (assq 'in-reply-to-status-id status)))
+	    (reply-name (cdr (assq 'in-reply-to-screen-name status))))
+	(when (and reply-id (not (string= "" reply-id))
+		   reply-name (not (string= "" reply-name)))
+	  (let ((in-reply-to-string (concat "in reply to " reply-name))
+		(url (twittering-get-status-url reply-name reply-id)))
+	    (concat
+	     " "
+	     (progn
+	       (add-text-properties
+		0 (length in-reply-to-string)
+		`(mouse-face highlight face twittering-uri-face uri ,url)
+		in-reply-to-string)
+	       in-reply-to-string))))))
+     ("R" ()
+      (let ((retweeted-by (cdr (assq 'original-user-screen-name status))))
+	(when (and retweeted-by (not (string= "" retweeted-by)))
+	  (concat " (retweeted by " retweeted-by ")"))))
+     ("S" () (cdr (assq 'user-name status)))
+     ("s" () (cdr (assq 'user-screen-name status)))
+     ("T" () (cdr (assq 'text status)))
+     ("t" () (cdr (assq 'text status)))
+     ("u" () (cdr (assq 'user-url status)))
+     )))
+
+(defmacro twittering-generate-format-status-function (format-str-exp)
+  (lexical-let ((format-str (eval format-str-exp)))
+    `(lambda (status)
+       (let* ((username (cdr (assq 'user-screen-name status)))
+	      (id (cdr (assq 'id status)))
+	      (text (cdr (assq 'text status)))
+	      (common-properties (list 'username username 'id id 'text text))
+	      (str (funcall
+		    ,(twittering-generate-status-formater-base 
+		     format-str)
+		    status)))
+	 (add-text-properties 0 (length str) common-properties str)
+	 str))))
+
+(defun twittering-update-status-format (&optional format-str)
+  (let ((format-str (or format-str twittering-status-format)))
+    (unless (string= format-str twittering-format-status-function-source)
+      (setq twittering-format-status-function-source format-str)
+      (setq twittering-format-status-function 
+	    (byte-compile
+	     (twittering-generate-format-status-function format-str))))
+    (setq twittering-status-format format-str)))
+
+(defun twittering-format-status (status)
+  "Format a STATUS by using `twittering-format-status-function'.
 Specification of FORMAT-STR is described in the document for the
 variable `twittering-status-format'."
-  (flet ((attr (key)
-	       (or (assocref key status) ""))
-	 (make-string-with-url-property
-	  (str url)
-	  (let ((result (copy-sequence str)))
-	    (add-text-properties
-	     0 (length result)
-	     `(mouse-face highlight face twittering-uri-face uri ,url)
-	     result)
-	    result))
-	 (make-string-with-update-property
-	  (str func &rest args)
-	  (let ((result (copy-sequence str)))
-	    (put-text-property 0 (length result)
-			       'need-to-be-updated `(,func ,@args) result)
-	    result))
-	 (expand-update-property-if-necessary
-	  (str func &rest args)
-	  (if (or (get-text-property 0 'need-to-be-updated str)
-		  (next-single-property-change 0 'need-to-be-updated str))
-	      (apply 'make-string-with-update-property str func args)
-	    str)))
-    (let* ((common-properties
-	    `(username ,(attr 'user-screen-name)
-		       id ,(attr 'id)
-		       text ,(attr 'text)))
-	   (replace-table
-	    `(("%" . "%")
-	      ("#" . ,(attr 'id))
-	      ("'" . ,(if (string= "true" (attr 'truncated)) "..." ""))
-	      ("@" .
-	       ,(let* ((created-at
-			(apply
-			 'encode-time (parse-time-string (attr 'created-at))))
-		       (url
-			(twittering-get-status-url (attr 'user-screen-name)
-						   (attr 'id)))
-		       (properties
-			(append `(mouse-face highlight
-					     face twittering-uri-face
-					     uri ,url)
-				common-properties)))
-		  (twittering-make-passed-time-string created-at properties)))
-	      ("C\\({\\([^}]*\\)}\\)?" .
-	       (lambda (context)
-		 (let ((str (cdr (assq 'following-string context)))
-		       (match-data (cdr (assq 'match-data context))))
-		   (let* ((time-format
-			   (or (match-string 2 str) "%H:%M:%S"))
-			  (created-at
-			   (apply 'encode-time
-				  (parse-time-string (attr 'created-at)))))
-		     (format-time-string time-format created-at)))))
-	      ("c" . ,(attr 'created-at))
-	      ("d" . ,(attr 'user-description))
-	      ("FACE\\[\\([a-zA-Z0-9:-]+\\)\\]{\\(\\([^{}]*?\\|{.*?[^%]}\\|%}\\)*\\)}" .
-	       ,(lambda (context)
-		  (let* ((str (cdr (assq 'following-string context)))
-			 (match-data (cdr (assq 'match-data context)))
-			 (from (cdr (assq 'from context)))
-			 (prefix (cdr (assq 'prefix context)))
-			 (table (cdr (assq 'replacement-table context)))
-			 (mod-table
-			  (cons '("}" . "}")
-				(remq (assq from table) table))))
-		    (store-match-data match-data)
-		    (let* ((face-name-str (match-string 1 str))
-			   (face-sym (intern face-name-str))
-			   (braced-str (match-string 2 str))
-			   (formatted-str
-			    (twittering-format-string
-			     braced-str prefix mod-table)))
-		      (add-text-properties
-		       0 (length formatted-str) `(face ,face-sym)
-		       formatted-str)
-		      formatted-str))))
-	      ("FILL{\\(\\([^{}]*?\\|{.*?[^%]}\\|%}\\)*\\)}" .
-	       ,(lambda (context)
-		  (let* ((str (cdr (assq 'following-string context)))
-			 (match-data (cdr (assq 'match-data context)))
-			 (from (cdr (assq 'from context)))
-			 (prefix (cdr (assq 'prefix context)))
-			 (table (cdr (assq 'replacement-table context)))
-			 (mod-table
-			  (cons '("}" . "}")
-				(remq (assq from table) table))))
-		    (store-match-data match-data)
-		    (let* ((formatted-str
-			    (twittering-format-string
-			     (match-string 1 str) prefix mod-table))
-			   (formatted-str
-			    (expand-update-property-if-necessary
-			     formatted-str
-			     'twittering-format-status
-			     status (concat "%" str))))
-		      (twittering-fill-string formatted-str)))))
-	      ("f" . ,(attr 'source))
-	      ("i" .
-	       ,(if (and twittering-icon-mode window-system)
-		    (let* ((profile-image-url (attr 'user-profile-image-url))
-			   (display-spec (twittering-make-display-spec-for-icon
-					  profile-image-url)))
-		      (if display-spec
-			  (let ((icon-string (copy-sequence " ")))
- 			    (set-text-properties 0 (length icon-string)
-						 display-spec icon-string)
-			    (add-to-list 'twittering-image-stack
-					 profile-image-url)
-			    icon-string)
-			""))
-		  ""))
-	      ("j" . ,(attr 'user-id))
-	      ("L" . ,(let ((location (attr 'user-location)))
-			(if (not (string= "" location))
-			    (concat " [" location "]")
-			  "")))
-	      ("l" . ,(attr 'user-location))
-	      ("p" . ,(if (string= "true" (attr 'user-protected))
-			  "[x]"
-			""))
-	      ("r" .
-	       ,(let ((reply-id (attr 'in-reply-to-status-id))
-		      (reply-name (attr 'in-reply-to-screen-name)))
-		  (if (or (string= "" reply-id) (string= "" reply-name))
-		      ""
-		    (let ((in-reply-to-string
-			   (concat "in reply to " reply-name))
-			  (url
-			   (twittering-get-status-url reply-name reply-id)))
-		      (concat " "
-			      (make-string-with-url-property
-			       in-reply-to-string url))))))
-	      ;; ("o" . ,(let ((reply-id (or (attr 'in-reply-to-status-id) ""))
-	      ;; 		    (reply-name (or (attr 'in-reply-to-screen-name) "")))
-	      ;; 		(or (when (not (member "" (list reply-id reply-name)))
-	      ;; 		      (catch 'loop
-	      ;; 			(dolist (l twittering-timeline-data)
-	      ;; 			  (when (string= (cdr (assq 'id l)) reply-id)
-	      ;; 			    (throw 'loop 
-	      ;; 				   (concat " "
-	      ;; 					   (make-string-with-url-property
-	      ;; 					    (concat
-	      ;; 					     "in reply to " reply-name 
-	      ;; 					     " (" (cdr (assq 'text l)) ")")
-	      ;; 					    (twittering-get-status-url 
-	      ;; 					     reply-name reply-id))))))
-	      ;; 			nil))
-	      ;; 		    "")))
-	      ("R" .
-	       ,(let ((retweeted-by (attr 'original-user-screen-name)))
-		  (if (string= "" retweeted-by)
-		      ""
-		    (concat " (retweeted by " retweeted-by ")"))))
-	      ("S" . ,(attr 'user-name))
-	      ("s" . ,(attr 'user-screen-name))
-	      ("T" . ,(attr 'text))
-	      ("t\\([^\n]*\\)" .
-	       ,(lambda (context)
-		  (let* ((str (cdr (assq 'processed-string context)))
-			 (prefix (if (string-match "\\([^\n]*\\)\\'" str)
-				     (match-string 1 str)
-				       ""))
-			 (following-str (cdr (assq 'following-string context)))
-			 (from (cdr (assq 'from context)))
-			 (match-data (cdr (assq 'match-data context)))
-			 (replace-prefix (cdr (assq 'prefix context)))
-			 (table (cdr (assq 'replacement-table context))))
-		    (store-match-data match-data)
-		    (let* ((postfix (twittering-format-string
-				     (match-string 1 following-str)
-				     replace-prefix table))
-			   (text (concat prefix (attr 'text) postfix)))
-		      (substring (twittering-fill-string text)
-				 (length prefix))))
-		  ))
-	      ("u" . ,(attr 'user-url))
-	      ))
-	   (formatted-status
-	    (twittering-format-string format-str "%" replace-table)))
-      (add-text-properties 0 (length formatted-status) common-properties
-			   formatted-status)
-      formatted-status)))
+  (funcall twittering-format-status-function status))
 
 (defun twittering-timer-action (func)
   (let ((buf (get-buffer twittering-buffer)))
@@ -3105,11 +3243,14 @@ variable `twittering-status-format'."
 	    (delete-region (point-min) (point-max))
 	    (insert url)))))))
 
-(defun twittering-retweet ()
-  (interactive)
-  (if twittering-use-native-retweet
-      (twittering-native-retweet)
-    (twittering-organic-retweet)))
+(defun twittering-retweet (&optional arg)
+  (interactive "P")
+  (let ((use-native-retweet-flag (if arg
+				     (not twittering-use-native-retweet)
+				   twittering-use-native-retweet)))
+    (if use-native-retweet-flag
+	(twittering-native-retweet)
+      (twittering-organic-retweet))))
 
 (defun twittering-organic-retweet ()
   (interactive)
@@ -3145,16 +3286,17 @@ variable `twittering-status-format'."
 	(browse-url uri))))
 
 (defun twittering-follow (&optional remove)
-  (interactive)
+  (interactive "P")
   (let ((username (get-text-property (point) 'username))
 	(method (if remove "destroy" "create"))
-	(mes (if remove "unfollowing" "following")))
+	(mes (if remove "Unfollowing" "Following")))
     (unless username
       (setq username (twittering-read-username-with-completion
 		      "who: " "" 'twittering-user-history)))
     (if (< 0 (length username))
-	(when (y-or-n-p (format "%s %s? " mes username))
-	  (twittering-manage-friendships method username))
+	(if (y-or-n-p (format "%s %s? " mes username))
+	    (twittering-manage-friendships method username)
+	  (message "Request canceled"))
       (message "No user selected"))))
 
 (defun twittering-unfollow ()
@@ -3178,14 +3320,15 @@ variable `twittering-status-format'."
 				(truncate-string-to-width text (- width 3))
 				"...")
 			     text))))
-	  (when (y-or-n-p mes)
-	    (twittering-http-post "api.twitter.com"
-			(concat "1/statuses/retweet/" id)
-			`(("source" . "twmode")))))
+	  (if (y-or-n-p mes)
+	      (twittering-http-post "api.twitter.com"
+				    (concat "1/statuses/retweet/" id)
+				    `(("source" . "twmode")))
+	    (message "Request canceled")))
       (message "No status selected"))))
 
 (defun twittering-favorite (&optional remove)
-  (interactive)
+  (interactive "P")
   (let ((id (get-text-property (point) 'id))
 	(text (get-text-property (point) 'text))
 	(width (max 40 ;; XXX
@@ -3203,8 +3346,9 @@ variable `twittering-status-format'."
 				(truncate-string-to-width text (- width 3))
 				"...")
 			     text))))
-	  (when (y-or-n-p mes)
-	    (twittering-manage-favorites method id)))
+	  (if (y-or-n-p mes)
+	      (twittering-manage-favorites method id)
+	    (message "Request canceled")))
       (message "No status selected"))))
 
 (defun twittering-unfavorite ()
@@ -3387,7 +3531,7 @@ Return nil if no statuses are rendered."
 	     (twittering-current-timeline-spec)
 	     nil id)))))))
 
-(defun twittering-get-next-status-head (&optional pos)
+(defun twittering-get-next-status-head-with-quotation (&optional pos)
   "Search forward from POS for the nearest head of a status.
 The return value is nil or a positive integer greater than POS."
   (let* ((pos (or pos (point)))
@@ -3397,6 +3541,21 @@ The return value is nil or a positive integer greater than POS."
 	    pos
 	  (next-single-property-change pos 'id))
 	nil)))
+
+(defun twittering-get-next-status-head (&optional pos prefix)
+  "Search forward from POS for the nearest head of a status.
+The return value is nil or a positive integer greater than POS."
+  (if prefix
+      (save-excursion
+	(let ((next-pos (twittering-get-next-status-head-with-quotation pos)))
+	  ;; skip a quoted tweet.
+	  (while (and next-pos
+		      (goto-char next-pos)
+		      (looking-at prefix))
+	    (setq next-pos
+		  (twittering-get-next-status-head-with-quotation next-pos)))
+	  next-pos))
+    (twittering-get-next-status-head-with-quotation pos)))
 
 (defun twittering-goto-previous-status ()
   "Go to previous status."
