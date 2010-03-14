@@ -1,3 +1,107 @@
+2010-03-11  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-update-status-format): kill
+	newly generated `*Compile-Log*' buffer if it is empty.
+
+	* twittering-mode.el (twittering-mode-init-variables): initialize
+	account information explicitly.
+	(twittering-get-username): simplified.
+	(twittering-get-password): simplified.
+
+2010-03-11  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-render-timeline): Call
+	`twittering-show-replied-statuses' if necessary.
+	(twittering-show-replied-tweets): New defvar.
+	(twittering-get-replied-statuses): Add optional argument `count'.
+	(twittering-show-replied-statuses): Likewise.
+	(twittering-have-replied-statuses-p): New defun.
+	(twittering-show-replied-statuses): Add optional argument
+	`interactive'.
+	(twittering-hide-replied-statuses): Likewise.
+	(twittering-toggle-show-replied-statuses): Adjust callers.
+	(twittering-show-replied-statuses): Show a reason to do nothing.
+	(twittering-hide-replied-statuses): Likewise.
+
+	* twittering-mode.el (twittering-get-replied-statuses): Fix
+	condition because `replied-id' always non-nil.
+	(twittering-hide-replied-statuses): Fix condition to avoid an
+	infinite loop.
+
+	* twittering-mode.el (twittering-hide-replied-statuses): Go to the
+	head of parent status before hiding replied statuses.
+
+	* twittering-mode.el (twittering-default-show-replied-tweets): New
+	defvar.
+	(twittering-render-timeline): Use it instead of
+	`twittering-show-replied-tweets'.
+	(twittering-toggle-show-replied-statuses): Pass
+	`twittering-show-replied-tweets' into
+	`twittering-show-replied-statuses'.
+	(twittering-show-replied-tweets): Add a docstring.
+
+2010-03-11  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-lookup-http-start-function):
+	rearranged.
+
+2010-03-10  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-lookup-http-start-function):
+	Don't use `booleanp' to work on Emacs21.
+
+	* twittering-mode.el (twittering-mode-map): Use `kbd' macro same
+	as other keymaps.
+
+	* twittering-mode.el (twittering-goto-next-status): Show a
+	progress message.
+	(twittering-goto-previous-status): Likewise.
+
+2010-03-10  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-fill-string): receive adjustment
+	width as the second argument.
+	(twittering-update-status-format): support formating status with a
+	prefix.
+	(twittering-generate-formater): likewise.
+	(twittering-generate-status-formater-base): likewise.
+	(twittering-generate-format-status-function): likewise.
+	(twittering-update-filled-string): likewise.
+	(twittering-format-status-for-redisplay): new function for
+	redisplaying a formated status with a prefix.
+
+	* twittering-mode.el (twittering-find-status): new function for
+	finding a status from an ID.
+	(twittering-get-replied-statuses): new function for making a list
+	of replied statuses.
+	(twittering-mode-map): add
+	`twittering-toggle-show-replied-statuses' to keymap as "r".
+	(twittering-replied-statuses-visible-p): new function.
+	(twittering-show-replied-statuses): new function.
+	(twittering-hide-replied-statuses): new function.
+	(twittering-toggle-show-replied-statuses): new function.
+	(twittering-get-id-at): new function.
+	(twittering-get-current-status-head): new function.
+
+2010-03-09  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-redisplay-status-on-buffer): call
+	`func' with the region.
+	(twittering-make-passed-time-string): restore the original
+	properties.
+
+	* twittering-mode.el (twittering-timeline-data-table): store ID
+	table and referring ID table, too.
+	(twittering-current-timeline-id-table): new function.
+	(twittering-add-statuses-to-timeline-data): store updated ID
+	tables.
+
+	* twittering-mode.el (twittering-generate-status-formater-base):
+	redisplay filled string including substring that should be
+	redisplayed.
+	(twittering-update-filled-string): new function for updating
+	filled string with `need-to-be-update' property.
+
 2010-03-07  Satoshi Yatagawa  <yata_github@y.hauN.org>
 
 	* twittering-mode.el (twittering-edit-replace-at-point): New defun
