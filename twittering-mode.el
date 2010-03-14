@@ -835,7 +835,7 @@ Return cons of the spec and the rest string."
 		   (query (replace-regexp-in-string "\\\\/" "/"
 						    escaped-query nil t))
 		   (rest (substring str (match-end 0))))
-	      (if (< 0 (length escaped-query))
+	      (if (not (string= "" escaped-query))
 		  `((search ,query) . ,rest)
 		(error "\"%s\" has no valid regexp" str)
 		nil))))
@@ -1080,8 +1080,9 @@ Statuses are stored in ascending-order with respect to their IDs."
 	(and (if (numberp count)
 		 (<= 0 (setq count (1- count)))
 	       t)
-	     (let ((replied-id (cdr (assq 'in-reply-to-status-id status))))
-	       (when (and replied-id (not (string= "" replied-id)))
+	     (let ((replied-id (or (cdr (assq 'in-reply-to-status-id status))
+				   "")))
+	       (unless (string= "" replied-id)
 		 (let ((replied-status (twittering-find-status replied-id)))
 		   (when replied-status
 		     (setq result (cons replied-status result))
@@ -2008,12 +2009,7 @@ Available keywords:
 	      (twittering-render-timeline t new-statuses))
 	    (twittering-add-timeline-history)))
 	(if twittering-notify-successful-http-get
-	    ;;(if suc-msg suc-msg "Success: Get.")
-	    (if suc-msg
-		suc-msg
-	      (if (eq 'public (car spec))
-		  "Success: Get (public_timeline will be obsoleted on 2010-04-05)"
-		"Success: Get."))
+	    (if suc-msg suc-msg "Success: Get.")
 	  nil)))
      (t
       (let ((error-mes (twittering-get-error-message (process-buffer proc))))
@@ -3069,18 +3065,17 @@ Example:
 	      icon-string)))))
      ("j" () (cdr (assq 'user-id status)))
      ("L" ()
-      (let ((location (cdr (assq 'user-location status))))
-	(when (and location (not (string= location "")))
+      (let ((location (or (cdr (assq 'user-location status)) "")))
+	(unless (string= "" location)
 	  (concat "[" location "]"))))
      ("l" () (cdr (assq 'user-location status)))
      ("p" () (if (string= "true" (cdr (assq 'user-protected status)))
 		 "[x]"
 	       ""))
      ("r" ()
-      (let ((reply-id (cdr (assq 'in-reply-to-status-id status)))
-	    (reply-name (cdr (assq 'in-reply-to-screen-name status))))
-	(when (and reply-id (not (string= "" reply-id))
-		   reply-name (not (string= "" reply-name)))
+      (let ((reply-id (or (cdr (assq 'in-reply-to-status-id status)) ""))
+	    (reply-name (or (cdr (assq 'in-reply-to-screen-name status)) "")))
+	(unless (or (string= "" reply-id) (string= "" reply-name))
 	  (let ((in-reply-to-string (concat "in reply to " reply-name))
 		(url (twittering-get-status-url reply-name reply-id)))
 	    (concat
@@ -3092,8 +3087,9 @@ Example:
 		in-reply-to-string)
 	       in-reply-to-string))))))
      ("R" ()
-      (let ((retweeted-by (cdr (assq 'original-user-screen-name status))))
-	(when (and retweeted-by (not (string= "" retweeted-by)))
+      (let ((retweeted-by (or (cdr (assq 'original-user-screen-name status))
+			      "")))
+	(unless (string= "" retweeted-by)
 	  (concat " (retweeted by " retweeted-by ")"))))
      ("S" () (cdr (assq 'user-name status)))
      ("s" () (cdr (assq 'user-screen-name status)))
@@ -3668,13 +3664,14 @@ variable `twittering-status-format'."
 	(method (if remove "destroy" "create"))
 	(mes (if remove "Unfollowing" "Following")))
     (unless username
-      (setq username (twittering-read-username-with-completion
-		      "who: " "" 'twittering-user-history)))
-    (if (< 0 (length username))
-	(if (y-or-n-p (format "%s %s? " mes username))
-	    (twittering-manage-friendships method username)
-	  (message "Request canceled"))
-      (message "No user selected"))))
+      (setq username (or (twittering-read-username-with-completion
+			  "who: " "" 'twittering-user-history)
+			 "")))
+    (if (string= "" username)
+	(message "No user selected")
+      (if (y-or-n-p (format "%s %s? " mes username))
+	  (twittering-manage-friendships method username)
+	(message "Request canceled")))))
 
 (defun twittering-unfollow ()
   (interactive)
@@ -3754,48 +3751,53 @@ variable `twittering-status-format'."
 
 (defun twittering-other-user-timeline-interactive ()
   (interactive)
-  (let ((username
-	 (twittering-read-username-with-completion
-	  "user: " nil
-	  'twittering-user-history)))
-    (if (< 0 (length username))
-	(twittering-get-and-render-timeline `(user ,username))
-      (message "No user selected"))))
+  (let ((username (or (twittering-read-username-with-completion
+		       "user: " nil
+		       'twittering-user-history)
+		      "")))
+    (if (string= "" username)
+	(message "No user selected")
+      (twittering-get-and-render-timeline `(user ,username)))))
 
 (defun twittering-other-user-list-interactive ()
   (interactive)
-  (let ((username (twittering-read-username-with-completion
-		   "whose list: "
-		   (get-text-property (point) 'username)
-		   'twittering-user-history)))
+  (let ((username (or (twittering-read-username-with-completion
+		       "whose list: "
+		       (get-text-property (point) 'username)
+		       'twittering-user-history)
+		      "")))
     (if (string= "" username)
 	(message "No user selected")
       (let* ((list-name (twittering-read-list-name username))
 	     (spec `(list ,username ,list-name)))
-	(when list-name
-	  (twittering-get-and-render-timeline spec))))))
+	(if list-name
+	    (twittering-get-and-render-timeline spec)
+	  (message "No list selected"))))))
 
 (defun twittering-direct-message ()
   (interactive)
   (let ((username (get-text-property (point) 'username)))
     (if username
-	(funcall twittering-update-status-function (concat "d " username " ")))))
+	(funcall twittering-update-status-function (concat "d " username " "))
+      (message "No user selected"))))
 
 (defun twittering-reply-to-user ()
   (interactive)
   (let ((username (get-text-property (point) 'username)))
-    (when username
-      (funcall twittering-update-status-function (concat "@" username " ")))))
+    (if username
+	(funcall twittering-update-status-function (concat "@" username " "))
+      (message "No user selected"))))
 
 (defun twittering-search (&optional word)
   (interactive)
   (let ((word (or word
 		  (read-from-minibuffer "search: " nil nil nil
-					'twittering-search-history nil t))))
-    (if (< 0 (length word))
-	(let ((spec `(search ,word)))
-	  (twittering-get-and-render-timeline spec))
-      (message "No query string"))))
+					'twittering-search-history nil t)
+		  "")))
+    (if (string= "" word)
+	(message "No query string")
+      (let ((spec `(search ,word)))
+	(twittering-get-and-render-timeline spec)))))
 
 (defun twittering-get-usernames-from-timeline (&optional timeline-data)
   (let ((timeline-data (or timeline-data (twittering-current-timeline-data))))
