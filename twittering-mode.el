@@ -1180,7 +1180,7 @@ Statuses are stored in ascending-order with respect to their IDs."
 	  twittering-process-info-alist)))
 
 (defun twittering-remove-inactive-processes ()
-  (let ((inactive-statuses '(nil closed failed exit signal)))
+  (let ((inactive-statuses '(nil closed exit failed signal)))
     (setq twittering-process-info-alist
 	  (apply 'append
 		 (mapcar
@@ -1966,26 +1966,37 @@ Available keywords:
 
 (defun twittering-http-default-sentinel (func noninteractive proc stat &optional suc-msg)
   (debug-printf "http-default-sentinel: proc=%s stat=%s" proc stat)
-  (let ((temp-buffer (process-buffer proc)))
-    (unwind-protect
-	(let* ((header (twittering-get-response-header temp-buffer))
-	       (header-info (twittering-update-server-info header))
-	       (mes
-		(cond
-		 ((null header-info)
-		  "Failure: Bad http response.")
-		 ((and func (fboundp func))
-		  (with-current-buffer temp-buffer
-		    (funcall func header-info proc noninteractive suc-msg)))
-		 (t
-		  nil))))
-	  (when (and mes (twittering-buffer-active-p))
-	    (message mes)))
-      ;; unwindforms
-      (twittering-release-process proc)
-      (when (and (not twittering-debug-mode) (buffer-live-p temp-buffer))
-	(kill-buffer temp-buffer))))
-  )
+  (let ((temp-buffer (process-buffer proc))
+	(status (process-status proc))
+	(mes nil))
+    (cond
+     ((null status)
+      (setq mes "Failure: no such process exists."))
+     ;; If a process is running, the processing sentinel has been postponed.
+     ((memq status '(run stop open listen connect))
+      (debug-printf "http-default-sentinel: postponed by status `%s'" status)
+      t)
+     ((memq status '(exit signal closed failed))
+      (unwind-protect
+	  (let* ((header (twittering-get-response-header temp-buffer))
+		 (header-info (twittering-update-server-info header)))
+	    (setq mes
+		  (cond
+		   ((null header-info)
+		    "Failure: Bad http response.")
+		   ((and func (fboundp func))
+		    (with-current-buffer temp-buffer
+		      (funcall func header-info proc noninteractive suc-msg)))
+		   (t
+		    nil))))
+	;; unwindforms
+	(twittering-release-process proc)
+	(when (and (not twittering-debug-mode) (buffer-live-p temp-buffer))
+	  (kill-buffer temp-buffer))))
+     (t
+      (setq mes (format "Failure: unknown condition: %s" status))))
+    (when (and mes (twittering-buffer-active-p))
+      (message mes))))
 
 (defun twittering-http-get-default-sentinel (header-info proc noninteractive &optional suc-msg)
   (let ((status-line (cdr (assq 'status-line header-info)))
@@ -2800,9 +2811,11 @@ image are displayed."
 			(twittering-retrieve-image image-url))))
     (and image-data (image-type-available-p (car image-data))
 	 (let ((image-spec
-		`(image :type ,(car image-data)
-			:data ,(cdr image-data)
-			:margin 2)))
+		(if (fboundp 'create-animated-image) ;; Emacs24 or later
+		    (create-animated-image (cdr image-data) (car image-data)
+					   t :margin 2)
+		  (create-image (cdr image-data) (car image-data)
+				t :margin 2))))
 	   (if (and twittering-convert-fix-size (not twittering-use-convert))
 	       (let* ((size (if (cdr image-data)
 				(image-size image-spec t)
@@ -3044,7 +3057,7 @@ Example:
        (face-sym (intern face-name-str))
        (braced-str (match-string 2 fmt-following))
        (formater (twittering-generate-status-formater-base braced-str)))
-      (let ((formated-str (funcall formater status)))
+      (let ((formated-str (funcall formater status prefix)))
 	(add-text-properties 0 (length formated-str) `(face ,face-sym)
 			     formated-str)
 	formated-str))
@@ -3179,7 +3192,7 @@ variable `twittering-status-format'."
 			    (+ status-len sign-len) status-len sign-len)
 		  (format "%d" status-len))))
       (if (<= 23 emacs-major-version)
-	  (minibuffer-message mes) ; Emacs23 or later
+	  (minibuffer-message mes) ;; Emacs23 or later
 	(minibuffer-message (concat " (" mes ")")))
       )))
 
@@ -3772,7 +3785,9 @@ variable `twittering-status-format'."
 	     (spec `(list ,username ,list-name)))
 	(if list-name
 	    (twittering-get-and-render-timeline spec)
-	  (message "No list selected"))))))
+	  ;; Don't show message here to prevent an overwrite of a
+	  ;; message which is outputted by `twittering-read-list-name'.
+	  )))))
 
 (defun twittering-direct-message ()
   (interactive)
