@@ -1,3 +1,51 @@
+2010-03-25  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-get-status-url): change the
+	format of a URL of a certain status into that used in the web
+	interface on `http://twitter.com/'.
+
+2010-03-24  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-register-process): store timeline
+	spec string.
+	(twittering-get-and-render-timeline): register a process together
+	with timeline spec string.
+	(twittering-release-process): use `delq' instead of `delete'.
+	(twittering-get-timeline-spec-string-from-process): new function
+	for registered timeline spec string.
+
+	* twittering-mode.el (twittering-http-get-default-sentinel):
+	display the timeline spec string in notification.
+
+2010-03-23  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-mode-map): bind "SPC" and "C-v" to
+	`twittering-scroll-up', and bind "<backspace>" and "M-v" to
+	`twittering-scroll-down'.
+	(twittering-scroll-up): new function. Thanks to Jim Crossley.
+	(twittering-scroll-down): new function.
+
+2010-03-20  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-edit-post-status): Don't add
+	parameter `in_reply_to_status_id' if the tweet does not begin with
+	`@' and username which is passed from callers.
+	(twittering-update-status-from-minibuffer): Likewise.
+	(twittering-generate-status-formater-base): Make the specifier
+	"%r" work similarly to web interface.
+
+2010-03-19  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-retrieve-image): Use
+	`create-image'.
+
+2010-03-19  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el (twittering-regexp-hash): New defvar.
+	(twittering-regexp-atmark): Likewise.
+	(twittering-extract-timeline-spec): Use these.
+	(twittering-make-clickable-status-datum): Likewise.
+
 2010-03-19  Tadashi MATSUO  <tad@mymail.twin.jp>
 
 	* twittering-mode.el (twittering-remove-inactive-processes): add
@@ -12,12 +60,53 @@
 	* twittering-mode.el (twittering-http-default-sentinel): Check
 	process-status before processing sentinel.
 
+	* twittering-mode.el (twittering-make-clickable-status-datum): Add
+	a text property `goto-spec'.
+	(twittering-other-user-timeline): Refer it.
+	(twittering-make-clickable-status-datum): Add a text property
+	`screen-name-in-text' to both `user-name' and `user-screen-name'.
+	(twittering-make-clickable-status-datum): No longer add text
+	properties `hashtag-in-text' and `uri-in-text'.
+	(twittering-enter): Don't refer these properties.
+	(twittering-make-clickable-status-datum): Reduce loops.
+
+	* twittering-mode.el (twittering-follow): Copy username and clear
+	its text properties before using it for display on minibuffer.
+	(twittering-other-user-list-interactive): Likewise.
+	(twittering-read-list-name): Likewise.
+	(twittering-native-retweet): Likewise for text.
+	(twittering-favorite): Likewise for text.
+
 2010-03-17  Tadashi MATSUO  <tad@mymail.twin.jp>
 
 	* twittering-mode.el (twittering-generate-status-formater-base):
 	fix the formater for "%FACE[...]{...}".
 
 2010-03-13  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el: Improve a support of sending direct
+	messages.
+
+	* twittering-mode.el (twittering-update-status-from-pop-up-buffer):
+	Use twitter API which is related of direct_messages if necessary.
+	(twittering-update-status-from-minibuffer): Likewise.
+	(twittering-timeline-spec-is-direct-messages-p): New defun.
+	(twittering-reply-recipient): Rename from
+	`twittering-reply-to-id'.
+	(twittering-update-status-from-pop-up-buffer): Adjust callers.
+	(twittering-render-timeline): Add a text property `belongs-spec'.
+	(twittering-update-status-from-pop-up-buffer): Add optional
+	arguments `username' and `spec'.
+	(twittering-update-status-from-minibuffer): Likewise.
+	(twittering-enter): Adjust callers.
+
+	* twittering-mode.el (twittering-edit-setup-help): Add optional
+	arguments `username' and `spec'.
+	(twittering-update-status-from-pop-up-buffer): Call it here.
+	(twittering-edit-mode): Don't call it here.
+
+	* twittering-mode.el (twittering-direct-message): Call
+	`twittering-read-username-with-completion'.
 
 	* twittering-mode.el (twittering-make-display-spec-for-icon): Use
 	`create-animated-image' if present (on Emacs24 or later).
@@ -214,6 +303,29 @@
 
 	* twittering-mode.el (twittering-make-display-spec-for-icon): add
 	2 pixels margin to icons in order to make the cursor stand out.
+
+2010-03-01  Satoshi Yatagawa  <yata_github@y.hauN.org>
+
+	* twittering-mode.el: Add a support of direct messages (which was
+	originally written by me in 2010-02-16)
+
+	* twittering-mode.el (twittering-xmltree-to-status): Convert a XML
+	tree retrieved with "direct_messages{,/sent}" request into a list
+	of status alists which is retrieved from a standard timeline.
+	(twittering-host-method-to-timeline-spec): Add condition for
+	`direct_messages' and `direct_messages_sent'.
+	(twittering-timeline-spec-to-host-method): Modify condition for
+	`direct_messages' and `direct_messages_sent'.
+
+	* twittering-mode.el (twittering-status-format): Modify the
+	meaning of the specifier "%r" to display a recipient on both
+	`direct_messages' and `direct_messages_sent'.
+
+	* twittering-mode.el (twittering-format-status): Add `url'
+	property for `direct_messages' and `direct_messages_sent'.
+	(twittering-get-status-url): Change the second argument ID as
+	optional.
+	(twittering-make-clickable-status-datum): Call it.
 
 2010-03-01  Tadashi MATSUO  <tad@mymail.twin.jp>
 
