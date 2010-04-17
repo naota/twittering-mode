@@ -38,6 +38,9 @@ existing way.
 * Support for official ReTweet.
 * Added some format specifiers of tweets.
 * Displaying image files without temporary files.
+* Support multiple buffers, where their name is derived from timeline spec.
+* Toggle automatic retrieval of the timeline by pressing 'a'.
+* Improved compatibility with global-font-lock mode.
 * ...
 
 ### Bug fixes
