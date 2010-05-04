@@ -1,3 +1,53 @@
+2010-05-03  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-edit-setup-help): generate help
+	message by using `substitute-command-keys'.
+
+	* twittering-mode.el: The format specifier "@" can receive the
+	time format string, which is used to format the time of
+	sufficiently old statuses.
+	(twittering-generate-status-formater-base): add new parameter
+	'time-format' to the specifier "@".
+	(twittering-make-passed-time-string): receive new argument
+	`time-format'.
+
+	* twittering-mode.el: Functions for retrieving URLs asynchronously
+	are added.
+	(twittering-url-data-hash): new variable for retrieved data.
+	(twittering-url-request-list): new variable for additional requests.
+	(twittering-url-request-sentinel-hash): new variable for sentinels.
+	(twittering-internal-url-queue): new variable.
+	(twittering-url-request-resolving-p): new variable.
+	(twittering-url-request-retry-limit): new variable.
+	(twittering-remove-redundant-queries): new function.
+	(twittering-resolve-url-request): new function.
+	(twittering-url-retrieve-async): new function.
+
+	* twittering-mode.el: Icons are retrieved asynchronously.
+	(twittering-icon-prop-hash): new variable.
+	(twittering-image-data-table): removed.
+	(twittering-get-display-spec-for-icon): new function.
+	(twittering-convert-image-data): new function.
+	(twittering-error-icon-data-pair): new constant.
+	(twittering-create-image-pair): new function.
+	(twittering-register-image-data): new function.
+	(twittering-make-slice-spec): new function.
+	(twittering-make-display-spec-for-icon): rearranged.
+	(twittering-make-icon-string): new function.
+	(twittering-retrieve-image): removed.
+	(twittering-generate-status-formater-base): use
+	`twittering-make-icon-string'.
+	(twittering-image-stack): removed.
+	(twittering-image-type): removed.
+	(twittering-image-type-cache): removed.
+
+2010-05-01  Immad Naseer  <immad.naseer@gmail.com>
+
+	* twittering-mode.el: New interactive functions for direct
+	messages are added.
+	(twittering-direct-messages-timeline): new function.
+	(twittering-sent-direct-messages-timeline): new function.
+
 2010-04-25  Tadashi MATSUO  <tad@mymail.twin.jp>
 
 	* twittering-mode.el: Fix mode-line to display the rate limit.
