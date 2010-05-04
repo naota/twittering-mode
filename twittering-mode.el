@@ -307,6 +307,10 @@ Twittering-mode provides two functions for updating status:
 * `twittering-update-status-from-minibuffer': edit tweets in minibuffer
 * `twittering-update-status-from-pop-up-buffer': edit tweets in pop-up buffer")
 
+(defvar twittering-request-confirmation-on-posting nil
+  "*If *non-nil*, confirmation will be requested on posting a tweet edited in
+pop-up buffer.")
+
 ;;;
 ;;; Proxy setting / functions
 ;;;
@@ -2260,7 +2264,8 @@ been initialized yet."
       (message "Empty tweet!"))
      ((< 140 (length status))
       (message "Too long tweet!"))
-     (t
+     ((or (not twittering-request-confirmation-on-posting)
+	  (y-or-n-p "Send this tweet? "))
       (setq twittering-edit-history
 	    (cons status twittering-edit-history))
       (cond
@@ -2284,7 +2289,9 @@ been initialized yet."
 			   ,(format "%s" reply-to-id))))
 	  (twittering-http-post twittering-api-host "1/statuses/update"
 				parameters))))
-      (twittering-edit-close)))))
+      (twittering-edit-close))
+     (t
+      nil))))
 
 (defun twittering-edit-cancel-status ()
   (interactive)
@@ -4613,8 +4620,12 @@ managed by `twittering-mode'."
       listname)))
 
 (defun twittering-read-timeline-spec-with-completion (prompt initial &optional as-string)
-  (let* ((dummy-hist (append twittering-timeline-history
-			     (twittering-get-usernames-from-timeline)))
+  (let* ((dummy-hist
+	  (append twittering-timeline-history
+		  (twittering-get-usernames-from-timeline)
+		  '(":direct_messages" ":direct_messages_sent" ":friends"
+		    ":home" ":mentions" ":public" ":replies"
+		    ":retweeted_by_me" ":retweeted_to_me" ":retweets_of_me")))
 	 (spec-string (twittering-completing-read prompt dummy-hist
 						  nil nil initial 'dummy-hist))
 	 (spec-string
