@@ -1,3 +1,26 @@
+2010-05-08  Takashi Masuda  <masutaka@nifty.com>
+
+	* twittering-mode.el (twittering-update-jojo): 自分のツイートには返
+	信しないようにした。
+	* twittering-mode.el (twittering-update-jojo): do not reply to
+	tweets posted by the current user itself.
+
+2010-05-08  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el (twittering-jojo-mode-p): confirm that the
+	buffer has not been killed.
+
+2010-05-06  Tadashi MATSUO  <tad@mymail.twin.jp>
+
+	* twittering-mode.el: Fix the format specifier "%r" for direct
+	message.
+	(twittering-status-to-status-datum): add `recipient-screen-name'
+	as a element of a status.
+	(twittering-xmltree-to-status): store `recipient_screen_name'
+	without modificaiton.
+	(twittering-generate-status-formater-base): replace "%r" with
+	`recipient-screen-name' if it exists.
+
 2010-05-05  Tadashi MATSUO  <tad@mymail.twin.jp>
 
 	* twittering-mode.el: Use a dummy buffer to prevent the cursor
